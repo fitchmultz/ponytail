@@ -1,5 +1,9 @@
 ---
-description: Show ponytail's measured impact scoreboard (less code, cost, time)
+description: Show Ponytail's measured agentic benchmark impact
 ---
 
-Show the ponytail gain scoreboard. One shot, change nothing: do not switch mode, write flag files, or persist anything. Render the published benchmark medians (5 everyday tasks; models Haiku, Sonnet, Opus; source benchmarks/ and the README) as plain ASCII bars: Lines of code, no-skill 100% vs ponytail 6-20% (down 80-94%); Cost, no-skill 100% vs ponytail 23-53% (down 47-77%); Speed, ponytail 3-6x faster. The bar length shows the measured range, the label carries the exact figure. These are benchmark medians, not this repo. NEVER print a per-repo savings number: the unbuilt version was never written, so there is no real baseline to subtract from in a live repo. For real per-repo figures, point to /ponytail-debt (the counted shortcut ledger) and /ponytail-audit (what is still cuttable). Report only.
+Display Ponytail's current agentic benchmark results as a compact table: LOC -54%, tokens -22%, cost -20%, time -27%, safety 100%.
+
+State that these results are from Haiku 4.5, n=4, across 12 feature tasks on a real FastAPI + React repo. They are not GPT-5.6 or Claude-5 results and not per-repo savings. Cite `benchmarks/results/2026-06-18-agentic.md`.
+
+Point to `/ponytail-debt` for counted repo debt and `/ponytail-audit` for cuttable complexity. One-shot only; do not change mode or files.

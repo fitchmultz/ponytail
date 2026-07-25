@@ -1,18 +1,14 @@
 ---
 name: ponytail
 description: >
-  Forces the laziest solution that actually works, simplest, shortest, most
-  minimal. Channels a senior dev who has seen everything: question whether the
-  task needs to exist at all (YAGNI), reach for the standard library before
-  custom code, native platform features before dependencies, one line before
-  fifty. Supports intensity levels: lite, full (default), ultra. Use on ANY
-  coding task: writing, adding, refactoring, fixing, reviewing, or designing
-  code, and choosing libraries or dependencies. Also use whenever the user
-  says "ponytail", "be lazy", "lazy mode", "simplest solution", "minimal
-  solution", "yagni", "do less", or "shortest path", or complains about
-  over-engineering, bloat, boilerplate, or unnecessary dependencies. Do NOT
-  use for non-coding requests (general knowledge, prose, translation,
-  summaries, recipes).
+  Forces the laziest working solution on any coding task: write, add, refactor,
+  fix, review, design, or pick libraries/deps. Levels: lite, full (default),
+  ultra. Triggers: "ponytail", "be lazy", "lazy mode", "simplest solution",
+  "minimal solution", "yagni", "do less", "shortest path", or complaints about
+  over-engineering, bloat, boilerplate, or unnecessary dependencies. Never cuts
+  input validation, security, data-loss handling, or accessibility. Do NOT use
+  for non-coding requests (general knowledge, prose, translation, summaries,
+  recipes).
 argument-hint: "[lite|full|ultra]"
 license: MIT
 ---
@@ -65,14 +61,9 @@ every sibling caller still broken. Fix it once, where all callers route through.
 
 ## Output
 
-Code first. Then at most three short lines: what was skipped, when to add it.
-No essays, no feature tours, no design notes. If the explanation is longer
-than the code, delete the explanation, every paragraph defending a
-simplification is complexity smuggled back in as prose. Explanation the user
-explicitly asked for (a report, a walkthrough, per-phase notes) is not debt,
-give it in full, the rule is only against unrequested prose.
-
+Code first. At most three short lines: what was skipped, when to add it.
 Pattern: `[code] → skipped: [X], add when [Y].`
+Requested explanation (report, walkthrough) is not debt; give it in full.
 
 ## Intensity
 
@@ -81,11 +72,6 @@ Pattern: `[code] → skipped: [X], add when [Y].`
 | **lite** | Build what's asked, but name the lazier alternative in one line. User picks. |
 | **full** | The ladder enforced. Stdlib and native first. Shortest diff, shortest explanation. Default. |
 | **ultra** | YAGNI extremist. Deletion before addition. Ship the one-liner and challenge the rest of the requirement in the same breath. |
-
-Example: "Add a cache for these API responses."
-- lite: "Done, cache added. FYI: `functools.lru_cache` covers this in one line if you'd rather not own a cache class."
-- full: "`@lru_cache(maxsize=1000)` on the fetch function. Skipped custom cache class, add when lru_cache measurably falls short."
-- ultra: "No cache until a profiler says so. When it does: `@lru_cache`. A hand-rolled TTL cache class is a bug farm with a hit rate."
 
 ## When NOT to be lazy
 
@@ -100,9 +86,8 @@ change touches, the actual flow — before picking a rung. Laziness that skips
 comprehension to ship a small diff is the dangerous kind: it dresses up as
 efficiency and ships a confident wrong fix. Read fully, then be lazy.
 
-Hardware is never the ideal on paper: a real clock drifts, a real sensor
-reads off, a PCA9685 runs a few percent fast. Leave the calibration knob, not
-just less code, the physical world needs tuning a minimal model can't see.
+Hardware is never the paper ideal: leave a calibration knob when the physical
+world needs tuning a minimal model can't see.
 
 Lazy code without its check is unfinished. Non-trivial logic (a branch, a
 loop, a parser, a money/security path) leaves ONE runnable check behind, the

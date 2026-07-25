@@ -1,7 +1,7 @@
 ---
 name: ponytail-review
 description: "Review a diff for over-engineering. Finds what to delete: reinvented stdlib, needless deps, speculative abstractions. One line per finding."
-homepage: https://github.com/DietrichGebert/ponytail
+homepage: https://github.com/fitchmultz/ponytail
 license: MIT
 ---
 
@@ -20,21 +20,6 @@ Tags:
 - `native:` dependency or code doing what the platform already does. Name the feature.
 - `yagni:` abstraction with one implementation, config nobody sets, layer with one caller.
 - `shrink:` same logic, fewer lines. Show the shorter form.
-
-## Examples
-
-❌ "This EmailValidator class might be more complex than necessary, have you
-considered whether all these validation rules are needed at this stage?"
-
-✅ `L12-38: stdlib: 27-line validator class. "@" in email, 1 line, real validation is the confirmation mail.`
-
-✅ `L4: native: moment.js imported for one format call. Intl.DateTimeFormat, 0 deps.`
-
-✅ `repo.py:L88: yagni: AbstractRepository with one implementation. Inline it until a second one exists.`
-
-✅ `L52-71: delete: retry wrapper around an idempotent local call. Nothing replaces it.`
-
-✅ `L30-44: shrink: manual loop builds dict. dict(zip(keys, values)), 1 line.`
 
 ## Scoring
 
