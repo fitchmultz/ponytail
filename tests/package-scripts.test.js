@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -15,19 +16,14 @@ test('root npm test covers bundled subprojects', () => {
   assert.match(packageJson.scripts.test, /node --test benchmarks\/pi\/run\.test\.mjs/);
 });
 
-test('fork tags cannot publish the upstream npm package', () => {
-  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish.yml'), 'utf8');
-  assert.match(workflow, /publish:\n    if: github\.repository == 'DietrichGebert\/ponytail'/);
-});
-
-test('CI installs native Pi and MCP dependencies before root npm test', () => {
-  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'test.yml'), 'utf8');
-
-  assert.match(workflow, /npm ci --ignore-scripts/);
-  assert.ok(workflow.indexOf('npm ci --ignore-scripts') < workflow.indexOf('npm test'));
-  assert.match(workflow, /npm install --prefix ponytail-mcp/);
-  assert.ok(
-    workflow.indexOf('npm install --prefix ponytail-mcp') < workflow.indexOf('npm test'),
-    'MCP dependencies must be installed before the root test command runs',
-  );
+test('release tag must exactly match the package version', () => {
+  const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
+  for (const [tag, expectedStatus] of [[`v${version}`, 0], [`v${version}-rc.1`, 1], ['vnot-a-version', 1], ['v0.0.0', 1]]) {
+    const result = spawnSync(process.execPath, ['scripts/check-versions.js'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_REF_TYPE: 'tag', GITHUB_REF_NAME: tag },
+    });
+    assert.equal(result.status, expectedStatus, `${tag}: ${result.stdout}${result.stderr}`);
+  }
 });

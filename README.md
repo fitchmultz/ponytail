@@ -127,7 +127,7 @@ Copilot CLI namespaces plugin commands by plugin name. For example:
 
 ### Pi agent harness
 
-Requires Pi **0.87.0 or newer**; validated against official 0.87.0 and the installed 0.87.0 fork. Earlier releases are unsupported.
+Requires Pi **0.87.0 or newer**; validated against official 0.87.0–0.87.1 and the installed 0.87.0 fork. Earlier releases are unsupported.
 
 ```bash
 pi install git:github.com/fitchmultz/ponytail@v5.0.0
@@ -305,14 +305,14 @@ Edit `hooks/ponytail-core.md` and `hooks/ponytail-modes.json` for policy changes
 
 ```bash
 npm ci --ignore-scripts
-npm install --prefix ponytail-mcp --ignore-scripts
+npm ci --prefix ponytail-mcp --ignore-scripts
 node scripts/build-openclaw-skills.js
 node scripts/check-rule-copies.js
 node scripts/check-versions.js
 npm test
 ```
 
-The generator checks every exported policy copy; stale output fails validation. Native Pi contract tests use the pinned SDK development dependency. See [native evaluations](benchmarks/pi/README.md) for live Astra checks. GitHub releases contain the installable package; this fork’s tag workflow does not publish the upstream npm namespace.
+The generator checks every exported policy copy; stale output fails validation. Native Pi contract tests use the pinned SDK development dependency. See [native evaluations](benchmarks/pi/README.md) for live Astra checks. GitHub releases contain the installable package; release tags are validated by CI, and this fork does not publish the upstream npm namespace.
 
 The correctness benchmark spawns Python for email and CSV checks; `python3` is tried before `python`. CSV checks need `pandas` installed locally.
 
