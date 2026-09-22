@@ -29,6 +29,21 @@ test('every registered command ships a Claude commands/*.toml', () => {
   }
 });
 
+test('workflow command wrappers preserve the complete canonical skill and host argument placeholder', () => {
+  const { parseCommandFile } = require('../.opencode/plugins/ponytail-frontmatter.cjs');
+  const workflows = fs.readdirSync(path.join(root, 'skills')).filter((name) => name.startsWith('ponytail-'));
+  for (const name of workflows) {
+    const body = fs.readFileSync(path.join(root, 'skills', name, 'SKILL.md'), 'utf8')
+      .replace(/^---[\s\S]*?---\s*/, '').replace(/\r\n/g, '\n').trim();
+    const openCode = parseCommandFile(path.join(root, '.opencode', 'command', `${name}.md`));
+    assert.equal(openCode.template.replace(/\r\n/g, '\n'), `${body}\n\nUser arguments: $ARGUMENTS`);
+    // Generated TOML uses JSON-compatible basic strings; check the decoded prompt.
+    const toml = fs.readFileSync(path.join(root, 'commands', `${name}.toml`), 'utf8');
+    const prompt = JSON.parse(toml.match(/^prompt = (.+)$/m)[1]);
+    assert.equal(prompt.trim(), `${body}\n\nUser arguments: {{args}}`);
+  }
+});
+
 test('every registered command ships an OpenCode .opencode/command/*.md', () => {
   for (const name of commands) {
     assert.ok(

@@ -11,28 +11,7 @@
   <em>말이 없다. 한 줄을 쓴다. 돌아간다.</em>
 </p>
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/50668?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-50668" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/50668" alt="DietrichGebert%2Fponytail | Trendshift" width="250" height="55"/></a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/github/stars/DietrichGebert/ponytail?style=flat-square&color=111111&label=stars" alt="Stars">
-  <img src="https://img.shields.io/github/v/release/DietrichGebert/ponytail?style=flat-square&color=111111&label=release" alt="Release">
-  <img src="https://img.shields.io/npm/v/@dietrichgebert/ponytail?style=flat-square&color=111111&label=npm" alt="npm">
-  <img src="https://img.shields.io/badge/works%20with-15%20agents-111111?style=flat-square" alt="Works with 15 agents">
-  <img src="https://img.shields.io/badge/license-MIT-111111?style=flat-square" alt="MIT license">
-</p>
-
-<p align="center">
-  <a href="https://trendshift.io/repositories/50668" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/50668/daily" alt="DietrichGebert/ponytail | Trendshift" width="250" height="55"/></a>
-  <a href="https://trendshift.io/repositories/50668" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/50668/weekly" alt="DietrichGebert/ponytail | Trendshift" width="250" height="55"/></a>
-  <a href="https://trendshift.io/repositories/50668?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-50668" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/50668/monthly?language=JavaScript" alt="DietrichGebert%2Fponytail | Trendshift monthly ranking" width="250" height="55"/></a>
-</p>
-
-<p align="center">
-  <strong>코드 약 54% 감소(최대 94%) &middot; 약 20% 저렴 &middot; 약 27% 빠름 &middot; 100% 안전</strong><br>
-  <sub>실제 오픈소스 저장소(FastAPI + React)를 고치는 실제 Claude Code 세션에서, 스킬을 끈 같은 에이전트와 견줘 측정했다. 약 54%는 기능 작업 12건의 평균이다(Haiku 4.5, n=4). 에이전트가 과하게 짤 여지가 있는 곳(날짜 선택기)에선 94%까지 오르고, 코드가 이미 최소한인 곳에선 0에 가깝다. ponytail은 안전 가드를 하나도 빼놓지 않지만, 그냥 "한 줄로 써"라고만 시킨 프롬프트는 그중 하나를 놓친다. (예전 단발성 벤치마크는 80-94%를 단일 수치로 내세웠는데, 공정한 에이전트 기준선에 견주면 그건 평균이 아니라 작업별 상한이다.) <a href="benchmarks/results/2026-06-18-agentic.md">전체 보고서</a> &middot; <a href="benchmarks/">직접 재현하기</a>.</sub>
-</p>
+이 포크는 하나의 정책을 어댑터들이 공유하고 Pi의 기본 세션 제어 기능을 사용한다. 요청한 결과 전체를 가장 단순한 올바른 구현으로 완성한다. 보안, 속도, 비용 절감을 보장하지 않는다.
 
 <p align="center">
   <sub>커뮤니티 번역이다. 기준이 되는 최신 버전은 <a href="README.md">영어 README</a>다.</sub>
@@ -61,48 +40,23 @@ ponytail이라면:
 
 살아남은 것들이 더 궁금하다면 [examples/](examples/)로.
 
-## Numbers
+## Evidence
 
-공정하게 재려면 실제 에이전트에게 실질적인 작업을 시켜 봐야 한다. 헤드리스 Claude Code 세션에게 [tiangolo의 full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template)(진짜 FastAPI + React 저장소)을 맡기고, 남긴 `git diff`로 점수를 매겼다. 기능 티켓 12건, 같은 에이전트를 스킬만 켜고 끄며 비교, n=4, Haiku 4.5.
+[과거 Haiku 4.5 벤치마크](benchmarks/results/2026-06-18-agentic.md)는 당시 작업, 모델, 정책의 결과다. Astra 성능이나 이번 릴리스의 안전성을 입증하지 않는다. 줄 수가 적다는 것만으로 정확성을 판단할 수 없다.
 
-<p align="center">
-  <img src="assets/benchmark-agentic.svg" width="860" alt="Each arm as a percent of the no-skill baseline across LOC, tokens, cost and time (Haiku 4.5). ponytail is lowest on every metric (LOC 46%, tokens 78%, cost 80%, time 73%); caveman rises above 100% on tokens, cost and time; yagni-oneliner LOC 67%. Safety, separate adversarial tier: baseline, caveman and ponytail 100%, yagni-oneliner 95%.">
-</p>
-
-| 스킬 없는 기준선 대비 | LOC | tokens | cost | time | safe |
-|---|--:|--:|--:|--:|--:|
-| **ponytail** | **-54%** | **-22%** | **-20%** | **-27%** | **100%** |
-| caveman (간결한 산문 대조군) | -20% | +7% | +3% | +2% | 100% |
-| "YAGNI + one-liners" 프롬프트 | -33% | -14% | -21% | -30% | 95% |
-
-모든 지표를 깎은 건 ponytail뿐이고, 그러면서 안전까지 온전히 지킨 것도 ponytail뿐이다. 깎이는 폭은 과잉 구현의 함정이 실제로 있는 곳에서 가장 크다. 컴포넌트 대신 네이티브 `<input>`으로 손이 가니 날짜 선택기는 404줄에서 23줄로, 색상 선택기는 287줄에서 23줄로 줄어든다. 반대로 이미 군더더기 없는 코드에선 거의 0이다. 전체 방법론, 작업별 표, 한계는 [benchmarks/results/2026-06-18-agentic.md](benchmarks/results/2026-06-18-agentic.md)에 있다.
-
-<details>
-<summary><strong>예전 단발성 수치 (격리된 생성)</strong></summary>
-
-일상적인 작업 다섯 가지, 모델 셋, 비교군 셋(스킬 없음, [caveman](https://github.com/JuliusBrussee/caveman), ponytail), 10회 실행, 중앙값 기준. 프롬프트 하나에 응답 하나, 답변의 줄 수를 셌다:
-
-<p align="center">
-  <img src="assets/benchmark-3model.svg" width="860" alt="Median lines of code per arm across Haiku, Sonnet and Opus">
-</p>
-
-여기선 **코드 80-94% 감소**가 나왔다. 다만 [#126](https://github.com/DietrichGebert/ponytail/issues/126)이 맞게 짚었듯, 스킬을 전혀 안 붙인 기준선 모델은 답변을 설명과 선택지로 부풀린다. 그래서 그 격차의 일부는 대화형 기준선이 만들어 낸 착시다. 위의 에이전트 수치가 그걸 바로잡은, 근거 있는 버전이다. 단발성 실행은 `npx promptfoo eval -c benchmarks/promptfooconfig.yaml`로 재현할 수 있다.
-
-</details>
-
-**규칙은 애초에 "토큰 최소화"가 아니었다.** 작업에 필요한 만큼만 쓰되, 검증·에러 처리·보안·접근성은 절대 덜어내지 않는다는 것이다. 코드가 작아지는 건 억지로 줄여서가 아니라 딱 그만큼만 필요해서다. 비용과 지연이 낮아지는 것도 단계를 충실히 밟는 모델에서나 부수적으로 딸려 오는 효과일 뿐이다. 그 단계를 고민하느라 사고 토큰을 쏟는 간결한 추론 모델은 오히려 거꾸로 갈 수도 있다(GPT-5.5가 그렇다).
+[Pi 기본 평가 도구](benchmarks/pi/README.md)는 동일한 작업을 Ponytail 사용 여부에 따라 반복 비교하며 별도 검증 작업도 포함한다. 효율 비교에 앞서 정확성과 요청 범위의 완전성을 확인한다. 비용은 추정치이며, 실패 시 보고되지 않은 사용량은 알 수 없는 값이다.
 
 ## How it works
 
 코드를 쓰기 전에, 에이전트는 가장 먼저 들어맞는 단계에서 멈춘다:
 
 ```
-1. 이게 있을 필요가 있나?      → 없다: 건너뛴다 (YAGNI)
+1. 요청 범위 밖의 기능인가?   → 추측으로 추가하지 않는다
 2. 이미 이 코드베이스에 있나?  → 다시 짜지 말고 가져다 쓴다
 3. 표준 라이브러리로 되나?     → 쓴다
 4. 네이티브 플랫폼 기능인가?   → 쓴다
 5. 깔려 있는 의존성이 푸나?    → 쓴다
-6. 한 줄로 되나?               → 한 줄
+6. 단순하게 구현 가능한가?   → 필요한 동작을 모두 보존한다
 7. 그제서야: 돌아가는 최소한
 ```
 
@@ -112,14 +66,14 @@ ponytail이라면:
 
 ## Install
 
-ponytail이 당신에게 요구할 수고의 최대치:
+이 포크는 GitHub와 Pi Git 설치 경로로 배포한다. npm 및 ClawHub의 upstream 패키지는 별도 릴리스다.
 
 Claude Code와 Codex 플러그인은 자그마한 Node.js 라이프사이클 훅 두 개를 돌리니, `node`가 PATH에 잡혀 있어야 한다(Nix/nvm 사용자라면 비대화형 셸의 PATH에 있어야 한다). 없어도 스킬은 멀쩡히 돌아간다. 다만 늘 켜져 있던 자동 활성화가 매 프롬프트마다 에러를 뱉는 대신 조용히 비활성으로 남을 뿐이다.
 
 ### Claude Code
 
 ```
-/plugin marketplace add DietrichGebert/ponytail
+/plugin marketplace add fitchmultz/ponytail
 ```
 ```
 /plugin install ponytail@ponytail
@@ -131,7 +85,7 @@ Claude Code와 Codex 플러그인은 자그마한 Node.js 라이프사이클 훅
 ### Codex
 
 ```bash
-codex plugin marketplace add DietrichGebert/ponytail
+codex plugin marketplace add fitchmultz/ponytail
 codex
 ```
 
@@ -143,14 +97,14 @@ codex
 ### GitHub Copilot CLI
 
 ```bash
-copilot plugin marketplace add DietrichGebert/ponytail
+copilot plugin marketplace add fitchmultz/ponytail
 copilot plugin install ponytail@ponytail
 ```
 
 대화형 Copilot CLI 세션에서는 슬래시 명령으로 똑같이 하면 된다:
 
 ```
-/plugin marketplace add DietrichGebert/ponytail
+/plugin marketplace add fitchmultz/ponytail
 /plugin install ponytail@ponytail
 ```
 
@@ -163,19 +117,21 @@ Copilot CLI는 플러그인 명령에 그 이름을 네임스페이스로 붙인
 
 ### Pi agent harness
 
+Pi 0.87.0 이상이 필요하다.
+
+```bash
+pi install git:github.com/fitchmultz/ponytail@v5.0.0
 ```
-pi install git:github.com/DietrichGebert/ponytail
-```
+
+Ponytail 패키지는 하나만 설정하고, 기존 스킬 필터를 새 항목에 유지한다. 설치 후 Pi를 다시 로드한다.
+
+`/ponytail`은 기본 모드를 활성화하고 `/ponytail status`는 상태를 표시한다. 모드 변경은 작업 도중에도 다음 모델 호출부터 적용된다. 모드는 세션 분기별로 유지되며 `/ponytail default <모드>`는 새 세션에 적용된다. 잘못된 설정 파일은 덮어쓰지 않고 오류를 알린다.
+
+스킬 별칭은 인수를 보존하고 비활성화된 스킬 설정을 존중한다. 작업 중에는 후속 요청으로 대기한다. `off`는 Ponytail 섹션만 제거하며 독립적인 `AGENTS.md` 규칙이나 이전 메시지를 지우지 않는다. 다른 확장의 전체 시스템 프롬프트 교체가 우선할 수 있다. `/skill:ponytail`은 독립 스킬을 불러오며 영구 모드를 바꾸지 않는다. 자세한 내용은 [영어 README](README.md#pi-agent-harness)를 참고한다.
 
 ### OpenCode
 
-`opencode.json`에 다음을 더한다:
-
-```json
-{ "plugin": ["@dietrichgebert/ponytail"] }
-```
-
-체크아웃에서 직접 돌려도 된다(플러그인이 `hooks/`와 `skills/`를 그대로 쓴다):
+이 포크의 체크아웃을 `opencode.json`에 등록한다(`hooks/`와 `skills/`를 그대로 쓴다):
 
 ```json
 { "plugin": ["./.opencode/plugins/ponytail.mjs"] }
@@ -188,7 +144,7 @@ pi install git:github.com/DietrichGebert/ponytail
 ### Gemini CLI
 
 ```bash
-gemini extensions install https://github.com/DietrichGebert/ponytail
+gemini extensions install https://github.com/fitchmultz/ponytail
 ```
 
 매 세션 룰셋을 늘 켜진 컨텍스트로 불러오고 `/ponytail` 명령들을 등록한다. `skills/`도 함께 실리며, 작업에 필요할 때 켜진다.
@@ -199,7 +155,7 @@ Gemini 어댑터는 일부러 루트 `hooks/hooks.json`을 두지 않는다. Gem
 Google이 Gemini CLI를 Antigravity CLI(`agy` 바이너리)로 이름을 바꾸는 중인데, 같은 확장이 거기에도 설치된다:
 
 ```bash
-agy plugin install https://github.com/DietrichGebert/ponytail
+agy plugin install https://github.com/fitchmultz/ponytail
 ```
 
 이 저장소의 `gemini-extension.json`을 그대로 재사용한다. 차이는 하나다. Antigravity는 `/ponytail` 명령들을 스킬로 바꿔 버려서, 슬래시 메뉴에서 고르는 대신 채팅에 직접 친다(예: `/ponytail-review`를 메시지로). 전환이 마무리될 때까지(2026년 6월 18일경)는 `gemini extensions install`도 여전히 먹힌다. 늘 켜진 규칙으로 돌리고 싶으면, 룰셋을 `.agents/rules/`에 넣으면 된다.
@@ -213,7 +169,7 @@ agy plugin install https://github.com/DietrichGebert/ponytail
 먼저 컬렉션을 라이브러리에 스테이징한 다음, 원하는 스킬을 더한다:
 
 ```bash
-swival skills add --global https://github.com/DietrichGebert/ponytail  # ~/.config/swival/library에 스테이징
+swival skills add --global https://github.com/fitchmultz/ponytail  # ~/.config/swival/library에 스테이징
 swival skills add ponytail                                             # 이 프로젝트에 컬렉션 설치
 swival skills add --global ponytail                                    # 또는 모든 프로젝트에서 켜기
 ```
@@ -225,23 +181,19 @@ Swival도 프로젝트 루트의 `AGENTS.md`와 전역의 `~/.config/swival/AGEN
 ### Devin CLI
 
 ```bash
-devin plugins install DietrichGebert/ponytail
+devin plugins install fitchmultz/ponytail
 ```
 
 ponytail을 Devin 플러그인으로 설치한다. 스킬은 `/ponytail:ponytail`, `/ponytail:ponytail-review` 등으로 쓸 수 있다.
 
 ### OpenClaw
 
-```bash
-clawhub install ponytail
-```
-
-ClawHub에서 ponytail을 OpenClaw 스킬로 설치한다. review, audit, debt, gain, help 스킬도 같은 식으로 깐다(`clawhub install ponytail-review` 등). OpenClaw는 코딩 작업에 이를 적용하고 `/ponytail` 명령으로도 열어 준다. ClawHub가 없으면 [`.openclaw/skills/ponytail`](.openclaw/skills/)을 `~/.openclaw/skills/`에 복사하면 된다.
+[`.openclaw/skills/`](.openclaw/skills/)에서 필요한 스킬 디렉터리를 `~/.openclaw/skills/`로 복사한다. 각 스킬은 독립적이다. ClawHub 컬렉션은 upstream이 배포하며 이 포크의 릴리스가 아니다.
 
 ### Grok Build
 
 ```bash
-grok plugin install DietrichGebert/ponytail --trust
+grok plugin install fitchmultz/ponytail --trust
 ```
 
 플러그인은 기본이 꺼져 있다. `/plugins` → Plugins에서 `ponytail`에 Space, 또는 `~/.grok/config.toml`:
@@ -258,7 +210,7 @@ enabled = ["ponytail"]
 ### Cursor
 
 ```bash
-git clone https://github.com/DietrichGebert/ponytail
+git clone https://github.com/fitchmultz/ponytail
 node ponytail/scripts/cursor-hooks.js install
 ```
 
@@ -284,25 +236,29 @@ Codex 확장을 쓰는 VS Code는 이 저장소가 함께 싣는 `AGENTS.md`를 
 
 | 명령 | 하는 일 |
 |---------|--------------|
-| `/ponytail [lite \| full \| ultra \| off]` | 강도를 정하거나, 끈다. 인수가 없으면 지금 레벨을 알려 준다. |
+| `/ponytail [lite \| full \| ultra \| off]` | 강도를 정하거나, 끈다. 인수 없는 동작은 호스트에 따라 다르며 Pi에서는 기본 모드를 활성화한다. |
 | `/ponytail-review` | 지금 diff를 과잉 구현 관점에서 훑고, 삭제 목록을 돌려준다. |
 | `/ponytail-audit` | diff만이 아니라 저장소 전체를 과잉 구현 관점에서 감사한다. |
 | `/ponytail-debt` | 미뤄 둔 `ponytail:` 간소화들을 장부로 모아, "나중에"가 "영영"이 되지 않게 한다. |
-| `/ponytail-gain` | 벤치마크로 잰 효과 스코어보드(코드 절감, 비용 절감, 속도 향상)를 보여 준다. |
+| `/ponytail-gain` | 과거 벤치마크 결과와 한계를 설명한다. 현재 세션의 절감 수치를 주장하지 않는다. |
 | `/ponytail-help` | 위 명령들의 빠른 참조. |
 
 명령들은 스킬을 지원하는 호스트가 있어야 돈다(Claude Code, Codex, Devin CLI, OpenCode, Gemini, pi, Swival). Codex에선 스킬이라 `@`로 부른다(`@ponytail-review`). [훅](#cursor)을 쓰는 Cursor는 `/ponytail` 레벨 전환만 되고, 일반 메시지로 입력한다. 지시문 전용 어댑터(Cursor 규칙 파일, Windsurf, Cline, Copilot, Kiro, Antigravity)는 명령 없이 늘 켜진 룰셋만 불러온다.
 
 ## Development
 
-압축 규칙 텍스트를 바꿀 때는, 에이전트 사본들을 같은 상태로 맞춰 둔다:
+`hooks/ponytail-core.md`와 `hooks/ponytail-modes.json`을 편집한 뒤 사본을 생성하고 확인한다. 워크플로 본문은 `skills/`에서 편집한다:
 
 ```bash
+npm ci --ignore-scripts
+npm install --prefix ponytail-mcp --ignore-scripts
+node scripts/build-openclaw-skills.js
 node scripts/check-rule-copies.js
+node scripts/check-versions.js
 npm test
 ```
 
-OpenClaw 스킬 패키지(`.openclaw/skills/`)는 `skills/`에서 생성된다. 스킬을 바꾼 뒤에는 `node scripts/build-openclaw-skills.js`를 다시 돌린다. 묵은 상태면 테스트 스위트가 실패한다.
+생성기는 핵심 스킬, 정적 규칙, 명령, OpenClaw 사본을 만든다. 오래된 사본은 검증에서 실패한다. 실제 Astra 작업은 [Pi 기본 평가 도구](benchmarks/pi/README.md)로 확인한다.
 
 정확성 벤치마크는 이메일·CSV 검사를 위해 Python을 띄운다. `python`보다 `python3`를 먼저 시도한다. CSV 검사는 로컬에 `pandas`가 깔려 있어야 한다.
 
@@ -312,10 +268,10 @@ OpenClaw 스킬 패키지(`.openclaw/skills/`)는 `skills/`에서 생성된다. 
 아니다. 선택 사항인 `~/.config/ponytail/config.json`이나 `PONYTAIL_DEFAULT_MODE` 환경 변수로 기본 레벨을 정할 순 있지만, 꼭 있어야 하는 건 없다.
 
 **그래도 120줄짜리 캐시 클래스가 정말 필요하다면?**
-필요 없다. 그래도 우기면 그가 만들어 준다. 천천히. 정확하게. 당신을 쳐다보면서.
+요청한 동작에 필요하면 구현한다. 단순함을 이유로 명시적인 요구사항을 취소하지 않는다.
 
 **확장은 되나?**
-당신이 안 쓴 코드는 무한히 확장된다. 버그 0, CVE 0, 가동률 100%. 예나 지금이나.
+실제 부하를 검증한다. 필요한 동작을 보존할 때만 코드 감소가 의미 있다.
 
 **왜 하필 "ponytail"인가?**
 당신은 이유를 정확히 안다.
@@ -337,10 +293,10 @@ OpenClaw 스킬 패키지(`.openclaw/skills/`)는 `skills/`에서 생성된다. 
 
 ## Star History
 
-<a href="https://www.star-history.com/dietrichgebert/ponytail#history">
+<a href="https://www.star-history.com/fitchmultz/ponytail#history">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=DietrichGebert/ponytail&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=DietrichGebert/ponytail&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=DietrichGebert/ponytail&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=fitchmultz/ponytail&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=fitchmultz/ponytail&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=fitchmultz/ponytail&type=Date" />
  </picture>
 </a>

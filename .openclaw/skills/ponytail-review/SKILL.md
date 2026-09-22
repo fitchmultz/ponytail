@@ -1,38 +1,35 @@
 ---
 name: ponytail-review
-description: "Review a diff for over-engineering. Finds what to delete: reinvented stdlib, needless deps, speculative abstractions. One line per finding."
+description: "Review a diff for over-engineering with evidence-backed, behavior-preserving simplifications. Report only."
 homepage: https://github.com/fitchmultz/ponytail
 license: MIT
 ---
 
-Review diffs for unnecessary complexity. One line per finding: location, what
-to cut, what replaces it. Every suggested cut must preserve the requested
-behavior and necessary verification.
+Review the current diff or requested target for unnecessary complexity. Report
+findings without applying fixes.
 
-## Format
+For each finding, give the location, evidence that the complexity is unnecessary,
+and a concrete simpler replacement. Trace relevant callers and contracts before
+claiming code is unused or a standard-library/native feature is equivalent.
+One implementation or caller is a clue, not proof that an abstraction is wasteful.
 
-`L<line>: <tag> <what>. <replacement>.`, or `<file>:L<line>: ...` for
-multi-file diffs.
+Use these tags where helpful:
 
-Tags:
+- `delete:` dead code or unused flexibility; no replacement needed.
+- `stdlib:` existing standard-library function covers the required behavior.
+- `native:` platform feature covers the required behavior.
+- `yagni:` speculative abstraction, configuration, or feature.
+- `shrink:` simpler expression of the same behavior.
 
-- `delete:` dead code, unused flexibility, speculative feature. Replacement: nothing.
-- `stdlib:` hand-rolled thing the standard library ships. Name the function.
-- `native:` dependency or code doing what the platform already does. Name the feature.
-- `yagni:` abstraction with one implementation, config nobody sets, layer with one caller.
-- `shrink:` same logic, fewer lines. Show the shorter form.
+Every proposed cut must preserve requested scope, user decisions, behavior,
+edge cases, security, data-loss handling, accessibility, and meaningful required
+verification. Keep checks protecting distinct behavior. Explain any uncertainty
+instead of inventing a finding or a savings estimate.
 
-## Scoring
+Rank by practical simplification benefit and confidence. Line/dependency savings
+are optional estimates, not the goal. If there are no supported findings, say
+"No supported over-engineering findings." This is not approval to ship or a
+correctness/security review; report any observed concerns outside this scope
+separately for the appropriate review.
 
-End with the only metric that matters: `net: -<N> lines possible.`
-
-If there is nothing to cut, say `Lean already. Ship.` and stop.
-
-## Boundaries
-
-Scope: over-engineering and complexity only. Correctness bugs, security holes,
-and performance are explicitly out of scope. Route them to a normal review
-pass, not this one. Preserve tests that protect distinct behavior; flag
-redundant checks only when the same claim remains meaningfully verified.
-Does not apply the fixes, only lists them.
-"stop ponytail-review" or "normal mode": revert to verbose review style.
+One-shot. "stop ponytail-review" or "normal mode" ends this review guidance.

@@ -1,6 +1,6 @@
 {
   "name": "@dietrichgebert/ponytail",
-  "version": "4.10.0",
+  "version": "5.0.0",
   "description": "Lazy senior dev mode for AI agents. The best code is the code you never wrote.",
   "keywords": ["opencode-plugin", "opencode", "ponytail", "pi-package", "pi", "skills", "qoder"],
   "license": "MIT",
@@ -8,13 +8,13 @@
     "name": "Dietrich Gebert",
     "url": "https://github.com/DietrichGebert"
   },
-  "homepage": "https://github.com/DietrichGebert/ponytail",
+  "homepage": "https://github.com/fitchmultz/ponytail",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DietrichGebert/ponytail.git"
+    "url": "git+https://github.com/fitchmultz/ponytail.git"
   },
   "bugs": {
-    "url": "https://github.com/DietrichGebert/ponytail/issues"
+    "url": "https://github.com/fitchmultz/ponytail/issues"
   },
   "main": "./.opencode/plugins/ponytail.mjs",
   "exports": {
@@ -40,6 +40,21 @@
   "pi": {
     "extensions": ["./pi-extension/index.js"],
     "skills": ["./skills"]
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": { "optional": true },
+    "@earendil-works/pi-coding-agent": { "optional": true }
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "0.87.0",
+    "@earendil-works/pi-coding-agent": "0.87.0"
   },
   "publishConfig": {
     "access": "public"

@@ -29,13 +29,7 @@ const REUSED_SKILLS = ['skills/ponytail/SKILL.md'];
 // Claude/Codex hook map uses events Gemini does not support, so it must stay
 // behind the host-specific plugin manifests instead.
 const GEMINI_AUTO_HOOKS = 'hooks/hooks.json';
-// Same load-bearing phrases asserted by scripts/check-rule-copies.js: the file
-// contextFileName points at must actually carry the rules, not just exist.
-const RULE_INVARIANTS = [
-  'lazy senior',
-  'input validation at trust boundaries',
-  'naive heuristic',
-];
+const { generatedFiles } = require('../scripts/build-openclaw-skills');
 
 function read(relPath) {
   return fs.readFileSync(path.join(root, relPath), 'utf8');
@@ -71,9 +65,7 @@ test('contextFileName resolves to a file carrying the ponytail rules', () => {
   const manifest = loadManifest();
   assert.ok(manifest.contextFileName, 'contextFileName must be set so rules load every session');
   const context = read(manifest.contextFileName);
-  for (const phrase of RULE_INVARIANTS) {
-    assert.ok(context.includes(phrase), `context file missing rule invariant: "${phrase}"`);
-  }
+  assert.equal(context.replace(/\r\n/g, '\n'), generatedFiles().get('AGENTS.md'));
 });
 
 test('the commands and skills the adapter reuses are present', () => {

@@ -15,6 +15,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { getPonytailInstructions } = require('../hooks/ponytail-instructions');
 
 const root = path.join(__dirname, '..');
 const rootFwd = root.replace(/\\/g, '/');
@@ -121,8 +122,7 @@ test('sessionStart injects the default-level ruleset as additional_context and k
   const output = parse(run('ponytail-activate.js', c.env, input));
   assert.deepEqual(Object.keys(output), ['additional_context']);
   assert.match(output.additional_context, /^PONYTAIL MODE ACTIVE — level: ultra/);
-  assert.match(output.additional_context, /\| \*\*ultra\*\* \|/, 'ultra row must survive the level filter');
-  assert.doesNotMatch(output.additional_context, /Build what's asked/, 'lite row must be filtered out');
+  assert.equal(output.additional_context, getPonytailInstructions('ultra'));
   assert.doesNotMatch(output.additional_context, /STATUSLINE SETUP NEEDED/, 'Cursor has no Claude statusline to nudge about');
   assert.equal(fs.readFileSync(c.flag, 'utf8'), 'ultra');
   assert.equal(fs.existsSync(path.join(c.home, '.claude')), false, 'Cursor state must not land in ~/.claude');
@@ -157,8 +157,7 @@ test('beforeSubmitPrompt tracks /ponytail commands and delivers the new level ru
   assert.equal(sw.continue, true, 'must never block the prompt');
   assert.equal(sw.user_message, undefined, 'Cursor shows user_message only for blocked prompts');
   assert.match(sw.additional_context, /^PONYTAIL MODE CHANGED — level: lite/);
-  assert.match(sw.additional_context, /Build what's asked/, 'Cursor has no /ponytail command, so the level ruleset rides along');
-  assert.doesNotMatch(sw.additional_context, /YAGNI extremist/);
+  assert.equal(sw.additional_context, 'PONYTAIL MODE CHANGED — level: lite\n\n' + getPonytailInstructions('lite'));
   assert.equal(fs.readFileSync(c.flag, 'utf8'), 'lite');
 
   // Bare /ponytail reports the live level without resetting it.

@@ -1,80 +1,68 @@
 ---
 name: ponytail-help
-description: "Quick reference for ponytail's modes, skills, and commands. One-shot display."
+description: "Quick reference for Ponytail modes, skills, and host-specific controls. One-shot display."
 homepage: https://github.com/fitchmultz/ponytail
 license: MIT
 ---
 
 # Ponytail Help
 
-Display this reference card when invoked. One-shot, do NOT change mode,
-write flag files, or persist anything.
+Display the relevant reference below without changing modes, files, or settings.
 
 ## Levels
 
-| Level | Trigger | What change |
-|-------|---------|-------------|
-| **Lite** | `/ponytail lite` | Build what's asked, name the lazier alternative in one line. |
-| **Full** | `/ponytail` | The ladder enforced: YAGNI → stdlib → native → one line → minimum. Default. |
-| **Ultra** | `/ponytail ultra` | YAGNI extremist. Deletion before addition. Challenges requirements before building. |
+- `/ponytail lite`: deliver the requested approach; suggest simpler alternatives when useful.
+- `/ponytail full`: prefer sufficient existing or native solutions, then the smallest complete implementation.
+- `/ponytail ultra`: cut unnecessary code aggressively while preserving every requested capability.
+- `/ponytail off`: disable the runtime policy. "stop ponytail" or "normal mode" also deactivates it in hosts with natural-language controls.
 
-Level sticks until changed or session end.
+Use an explicit level to activate consistently across hosts. Bare `/ponytail`
+activates the configured default on Pi (full when the default is off), reports
+the current mode in Hermes and lifecycle-hook hosts, and selects the configured
+default in OpenCode. Session persistence follows the host; Pi saves mode per
+session branch and restores it on resume.
 
-## Skills
+On Pi, `/ponytail status` shows current/default modes and
+`/ponytail default lite|full|ultra|off` changes the default for new sessions.
+Lifecycle-hook hosts also support `/ponytail default <mode>`.
 
-| Skill | Trigger | What it does |
-|-------|---------|--------------|
-| **ponytail** | `/ponytail` | Lazy mode itself. Simplest solution that works. |
-| **ponytail-review** | `/ponytail-review` | Over-engineering review: `L42: yagni: factory, one product. Inline.` |
-| **ponytail-audit** | `/ponytail-audit` | Whole-repo over-engineering audit: ranked list of what to delete. |
-| **ponytail-debt** | `/ponytail-debt` | Harvest `ponytail:` shortcut comments into a tracked ledger. |
-| **ponytail-gain** | `/ponytail-gain` | Measured-impact scoreboard: less code, less cost, more speed. |
-| **ponytail-help** | `/ponytail-help` | This card. |
+## Standalone skill and workflows
 
-Pi and slash-command hosts use the forms above. Codex uses `@ponytail`,
-`@ponytail-review`, `@ponytail-help` (and the other skill names the same way).
+The standalone Ponytail skill supplies coding guidance with an optional
+lite/full/ultra argument. On Pi, `/skill:ponytail` does **not** change persistent
+mode; `/ponytail` is the persistent control. The skill remains usable without
+the extension. Always-on repository rules are independent of runtime mode;
+turning the extension off does not remove those rules.
 
-## Deactivate
+- `/ponytail-review [target]`: evidence-backed over-engineering review of a diff or target.
+- `/ponytail-audit [target]`: repository-wide over-engineering audit.
+- `/ponytail-debt`: ledger of deliberate `ponytail:` shortcuts.
+- `/ponytail-gain`: historical benchmark scoreboard and its limits.
+- `/ponytail-help`: this reference.
 
-Say "stop ponytail" or "normal mode". Resume anytime with `/ponytail`.
-`/ponytail off` also works.
+Pi aliases invoke the corresponding enabled `/skill:ponytail-*` skills.
+Other hosts expose installed skills or command files using their own syntax;
+Codex uses `@ponytail` and `@ponytail-review`, for example. Do not promise an
+alias for a disabled or unavailable skill.
 
-## Configure Default Mode
+## Defaults and updates
 
-Default mode = `full`, auto-active every session. Change it:
+Runtime adapters default to full. Set `PONYTAIL_DEFAULT_MODE` to
+`off`, `lite`, `full`, or `ultra`, or put `{"defaultMode":"lite"}` in
+`$XDG_CONFIG_HOME/ponytail/config.json` (when set), otherwise
+`~/.config/ponytail/config.json`, or `%APPDATA%\ponytail\config.json` on Windows.
+Resolution: environment variable, then config file, then full. Standalone
+skills and static rules do not read runtime configuration.
 
-**Environment variable** (highest priority):
-```bash
-export PONYTAIL_DEFAULT_MODE=ultra
-```
-
-**Config file** (`~/.config/ponytail/config.json`, Windows: `%APPDATA%\ponytail\config.json`):
-```json
-{ "defaultMode": "lite" }
-```
-
-Set `"off"` to disable auto-activation on session start, activate manually
-with `/ponytail` when wanted.
-
-Resolution: env var > config file > `full`.
-
-## Update
-
-**Pi (this fork, current path):**
+Update through the host's package/plugin manager. On Pi:
 
 ```bash
 pi install git:github.com/fitchmultz/ponytail
-pi update --extensions
-# or one package: pi update git:github.com/fitchmultz/ponytail
+pi update git:github.com/fitchmultz/ponytail
 ```
 
-Pinned git refs are not moved by `pi update --extensions`; reinstall with
-`pi install git:github.com/fitchmultz/ponytail@<ref>` to change the pin.
-
-**Other hosts:** use that host's package/plugin update flow (Claude Code
-marketplace update + reload, Codex/OpenCode/Hermes plugin or npm update, etc.).
-
-## More
+Pinned refs stay pinned; install `git:github.com/fitchmultz/ponytail@<ref>` to
+select a different revision. Reload or restart as required by the host.
 
 Fork: https://github.com/fitchmultz/ponytail
 Upstream docs/examples: https://github.com/DietrichGebert/ponytail

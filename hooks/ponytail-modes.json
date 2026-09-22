@@ -1,0 +1,5 @@
+{
+  "lite": "Build the requested approach; briefly suggest a simpler alternative when useful, without delaying work or reopening a settled decision.",
+  "full": "Use the first sufficient existing or native solution; otherwise build the smallest complete implementation.",
+  "ultra": "Cut unnecessary code aggressively while delivering every requested capability and preserving required behavior."
+}

@@ -1,10 +1,3 @@
----
-name: ponytail
-description: "Simplify coding work when asked for Ponytail or less complexity. Standalone guidance preserves requested capabilities; lite, full, or ultra."
-homepage: https://github.com/fitchmultz/ponytail
-license: MIT
----
-
 # Ponytail
 
 Build the simplest complete solution.
@@ -16,12 +9,3 @@ Build the simplest complete solution.
 - Preserve input validation at trust boundaries, security, data-loss prevention, and accessibility. Keep calibration controls when real hardware needs them. Mark deliberate shortcuts with a `ponytail:` comment naming the known ceiling and when or how to upgrade.
 - Verify changed behavior with proportional, meaningful checks and complete required verification. Reuse existing tests and tooling; add or strengthen a check when it protects a concrete behavior or failure that existing checks miss. Do not add tests merely because code changed, or remove checks that protect distinct behavior.
 - Honor requested explanations and deliverables. Ponytail limits unnecessary implementation complexity, not useful communication.
-
-## Levels
-
-- **lite**: Build the requested approach; briefly suggest a simpler alternative when useful, without delaying work or reopening a settled decision.
-- **full**: Use the first sufficient existing or native solution; otherwise build the smallest complete implementation.
-- **ultra**: Cut unnecessary code aggressively while delivering every requested capability and preserving required behavior.
-
-Apply the requested level (default full) to coding work until the user changes it or says "stop ponytail" or "normal mode".
-On Pi, `/skill:ponytail` supplies these standalone instructions without changing saved mode; use `/ponytail lite|full|ultra|off` for persistent control.

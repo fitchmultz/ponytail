@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import {
-  filterSkillBodyForMode,
   parsePonytailCommand,
   readDefaultMode,
   readQuietStartup,
@@ -104,66 +102,27 @@ test("readQuietStartup resolves env var, config file, and default in that order"
   }
 });
 
-test("filterSkillBodyForMode keeps only requested intensity examples and rows", () => {
-  // Examples are quoted in the real SKILL.md (`- lite: "..."`) — match that
-  // shape here too; see the next test for why the quote is load-bearing.
-  const body = `---\nname: ponytail\n---\n| **lite** | keep lite |\n| **full** | keep full |\n| **ultra** | keep ultra |\n- lite: "Lite example"\n- full: "Full example"\n- ultra: "Ultra example"\nOther line`;
-
-  const filtered = filterSkillBodyForMode(body, "ultra");
-
-  assert.ok(!filtered.includes("keep lite"));
-  assert.ok(!filtered.includes("keep full"));
-  assert.ok(filtered.includes("keep ultra"));
-  assert.ok(!filtered.includes("Lite example"));
-  assert.ok(filtered.includes("Ultra example"));
-  assert.ok(filtered.includes("Other line"));
-});
-
-test("filterSkillBodyForMode does not drop a rule bullet whose label matches a mode name", () => {
-  // A rule bullet like "- Full: ..." has the same "label: text" shape as a
-  // worked example, but isn't one — it must survive in every mode. Only the
-  // quoted, `- lite: "..."`-style bullets are real per-mode examples.
-  const body = `- Full: do not confuse this rule label with the mode name.\n- Lite: same risk, this is a real rule bullet.\n- lite: "real worked example"\n- ultra: "real worked example"`;
-
-  const filtered = filterSkillBodyForMode(body, "ultra");
-
-  assert.ok(filtered.includes("Full: do not confuse"), "an unquoted rule bullet must not be treated as a mode example");
-  assert.ok(filtered.includes("Lite: same risk"), "an unquoted rule bullet must not be treated as a mode example");
-  assert.ok(!filtered.includes("- lite:"), "the real quoted lite example must still be filtered out in ultra mode");
-  assert.ok(filtered.includes('ultra: "real worked example"'));
-});
-
-test("filterSkillBodyForMode keeps rule bullets that contain a colon", () => {
-  // Regression: rule bullets outside the Intensity section (e.g. the
-  // "No unrequested abstractions:" rule or the `ponytail:` comment convention)
-  // contain a colon and must not be mistaken for mode-example lines.
-  const skillPath = new URL("../../skills/ponytail/SKILL.md", import.meta.url);
-  const body = readFileSync(skillPath, "utf8");
-
-  const filtered = filterSkillBodyForMode(body, "full");
-
-  assert.ok(filtered.includes("No unrequested abstractions"));
-  assert.ok(filtered.includes("Mark deliberate simplifications that cut a real corner"));
-  assert.ok(filtered.includes("`ponytail:` comment naming the ceiling and upgrade path"));
-  // Intensity table keeps the active mode row only.
-  assert.ok(filtered.includes("| **full** |"));
-  assert.ok(!filtered.includes("| **lite** |"));
-  assert.ok(!filtered.includes("| **ultra** |"));
-});
-
-test("missing skill file preserves scope and proportional verification", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "ponytail-fallback-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const hooks = join(root, "hooks");
-  mkdirSync(hooks);
-  for (const name of ["ponytail-instructions.js", "ponytail-config.js"]) {
-    copyFileSync(new URL(`../../hooks/${name}`, import.meta.url), join(hooks, name));
+test("writeDefaultMode rejects malformed and non-object configs without changing any bytes", t => {
+  const dir = mkdtempSync(join(tmpdir(), "ponytail-config-invalid-"));
+  const previousXdg = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = dir;
+  t.after(() => {
+    if (previousXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = previousXdg;
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const configPath = join(dir, "ponytail", "config.json");
+  mkdirSync(join(dir, "ponytail"));
+  for (const content of ['{ "keep": true, broken', "null", "[]", '"string"', "1", "false"]) {
+    writeFileSync(configPath, content);
+    assert.throws(() => writeDefaultMode("lite"));
+    assert.equal(readFileSync(configPath, "utf8"), content);
   }
-  const { getPonytailInstructions } = createRequire(import.meta.url)(join(hooks, "ponytail-instructions.js"));
-  const instructions = getPonytailInstructions("ultra");
-  assert.match(instructions, /^PONYTAIL MODE ACTIVE — level: ultra/);
-  assert.match(instructions, /Complete the requested outcome with the simplest working implementation/);
-  assert.match(instructions, /Reuse existing tests and the project's normal tooling/);
-  assert.match(instructions, /Complete required checks; do not add tests merely because code changed/);
-  assert.doesNotMatch(instructions, /Ship the lazy version|Code first|three short lines|ONE runnable check|delete the explanation/);
+  const config = { defaultMode: "full", quietStartup: true, hideStatus: true, unrelated: { keep: [1, 2] } };
+  writeFileSync(configPath, `\uFEFF${JSON.stringify(config)}`);
+  assert.equal(writeDefaultMode("lite"), "lite");
+  assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), { ...config, defaultMode: "lite" });
+  rmSync(configPath);
+  mkdirSync(configPath);
+  assert.throws(() => writeDefaultMode("lite"), { code: "EISDIR" });
 });

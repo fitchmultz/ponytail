@@ -8,6 +8,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { getPonytailInstructions } = require('../hooks/ponytail-instructions');
 
 // Point the plugin's mode-flag at a temp config home BEFORE it loads — the
 // plugin resolves its state path once at load (as it does under a real OpenCode
@@ -41,7 +42,7 @@ test('system.transform injects the ruleset at the default mode (full)', async ()
   const system = await transform(hooks);
   assert.equal(system.length, 1);
   assert.match(system[0], /PONYTAIL MODE ACTIVE — level: full/);
-  assert.match(system[0], /lazy senior developer/);
+  assert.equal(system[0], getPonytailInstructions('full'));
 });
 
 test('command.execute.before persists /ponytail ultra, transform follows it', async () => {

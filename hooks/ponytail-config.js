@@ -139,13 +139,18 @@ function writeDefaultMode(mode) {
   if (!normalized) return null;
 
   const configPath = getConfigPath();
-  fs.mkdirSync(path.dirname(configPath), { recursive: true });
-  let config = {};
+  let config;
   try {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, ''));
-    if (!config || typeof config !== 'object' || Array.isArray(config)) config = {};
-  } catch (_) {}
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    config = {};
+  }
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    throw new TypeError('Ponytail config must be a JSON object.');
+  }
   config.defaultMode = normalized;
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
   return normalized;
 }

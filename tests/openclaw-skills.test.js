@@ -6,7 +6,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
-const { NAMES, render, outPath, sourceBody, DESCRIPTIONS } = require('../scripts/build-openclaw-skills');
+const path = require('path');
+const { NAMES, render, outPath, sourceBody, DESCRIPTIONS, generatedFiles } = require('../scripts/build-openclaw-skills');
+
+test('every shipped standalone skill, rule, and command matches its canonical source', () => {
+  for (const [relative, expected] of generatedFiles()) {
+    const actual = fs.readFileSync(path.join(__dirname, '..', relative), 'utf8').replace(/\r\n/g, '\n');
+    assert.equal(actual, expected, `${relative}: run node scripts/build-openclaw-skills.js`);
+  }
+});
 
 for (const name of NAMES) {
   test(`${name}: committed OpenClaw skill matches the generator`, () => {

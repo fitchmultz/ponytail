@@ -47,7 +47,8 @@ test('qoder rules file exists and is non-empty', () => {
   assert.ok(fs.existsSync(rulesPath), '.qoder/rules/ponytail.md must exist');
   const content = fs.readFileSync(rulesPath, 'utf8').trim();
   assert.ok(content.length > 0, '.qoder/rules/ponytail.md must not be empty');
-  assert.ok(content.includes('lazy senior developer'), 'rules must contain the ponytail identity');
+  const core = fs.readFileSync(path.join(root, 'hooks', 'ponytail-core.md'), 'utf8').trim();
+  assert.ok(content.includes(core), 'rules must carry the complete canonical policy');
 });
 
 test('qoder manifest points at skills that actually ship', () => {

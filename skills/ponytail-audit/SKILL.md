@@ -1,41 +1,30 @@
 ---
 name: ponytail-audit
 description: >
-  Whole-repo audit for over-engineering. Like ponytail-review, but scans the
-  entire codebase instead of a diff: a ranked list of what to delete, simplify,
-  or replace with stdlib/native equivalents. Use when the user says "audit this
-  codebase", "audit for over-engineering", "what can I delete from this repo",
-  "find bloat", "ponytail-audit", or "/ponytail-audit". One-shot report, does
-  not apply fixes.
+  Audit a repository for over-engineering when asked to find bloat or deletion
+  opportunities. Ranked, evidence-backed findings; reports without applying fixes.
+license: MIT
 ---
 
-ponytail-review, repo-wide. Scan the whole tree instead of a diff. Rank
-findings biggest cut first.
+Audit the repository for unnecessary complexity, beyond the current diff.
+Map the codebase and investigate likely duplication, dead code, redundant
+wrappers, unused configuration, and custom code already covered by standard
+libraries or native features. Follow relevant callers and contracts; a small
+file, single implementation, or single caller is not by itself a defect.
 
-## Tags
+For each supported finding, give the path and location, evidence, concrete
+replacement, and why it preserves the required semantics and edge cases.
+Useful tags: `delete`, `stdlib`, `native`, `yagni`, `shrink`.
 
-Same as ponytail-review:
+Preserve requested capabilities, settled user decisions, security, data-loss
+handling, accessibility, and meaningful required verification. Retain tests
+protecting distinct behavior. Do not recommend a cut based on line counts alone.
 
-- `delete:` dead code, unused flexibility, speculative feature. Replacement: nothing.
-- `stdlib:` hand-rolled thing the standard library ships. Name the function.
-- `native:` dependency or code doing what the platform already does. Name the feature.
-- `yagni:` abstraction with one implementation, config nobody sets, layer with one caller.
-- `shrink:` same logic, fewer lines. Show the shorter form.
+Rank findings by practical simplification benefit and confidence. State coverage
+limits and unresolved uncertainty. Include savings estimates only when supported;
+do not invent totals. If nothing is supported, say "No supported over-engineering
+findings." This is not approval to ship or a correctness/security review; flag
+observed concerns outside this scope separately for the appropriate review.
 
-## Hunt
-
-Deps the stdlib or platform already ships, single-implementation interfaces,
-factories with one product, wrappers that only delegate, files exporting one
-thing, dead flags and config, hand-rolled stdlib.
-
-## Output
-
-One line per finding, ranked: `<tag> <what to cut>. <replacement>. [path]`.
-End with `net: -<N> lines, -<M> deps possible.` Nothing to cut: `Lean already. Ship.`
-
-## Boundaries
-
-Scope: over-engineering and complexity only. Correctness bugs, security holes,
-and performance are explicitly out of scope. Route them to a normal review
-pass. Lists findings, applies nothing. One-shot.
-"stop ponytail-audit" or "normal mode" to revert.
+One-shot report; apply no fixes. "stop ponytail-audit" or "normal mode" ends
+this audit guidance.

@@ -1,4 +1,7 @@
+import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import { getCurrentSystemMessage } from "@earendil-works/pi-ai";
 
 const require = createRequire(import.meta.url);
 const {
@@ -12,17 +15,16 @@ const {
   isDeactivationCommand,
   writeDefaultMode,
 } = require("../hooks/ponytail-config.js");
-const { getPonytailInstructions, filterSkillBodyForMode } = require("../hooks/ponytail-instructions.js");
-
-export { filterSkillBodyForMode };
+const { getPonytailInstructions } = require("../hooks/ponytail-instructions.js");
 export const readDefaultMode = getDefaultMode;
 export const readQuietStartup = getQuietStartup;
 
 const RUNTIME_MODE_LIST = RUNTIME_MODES.join("|");
 const PONYTAIL_COMMAND_DESCRIPTION = `Set mode: ${RUNTIME_MODE_LIST}. Commands: status, default <mode>`;
+const coreSkillPath = realpathSync(fileURLToPath(new URL("../skills/ponytail/SKILL.md", import.meta.url)));
 
 export function resolveSessionMode(entries, fallbackMode = DEFAULT_MODE) {
-  const fallback = normalizePersistedMode(fallbackMode) || DEFAULT_MODE;
+  const fallback = fallbackMode === null ? null : normalizePersistedMode(fallbackMode) || DEFAULT_MODE;
   if (!Array.isArray(entries)) return fallback;
 
   for (let i = entries.length - 1; i >= 0; i -= 1) {
@@ -64,52 +66,34 @@ export default function ponytailExtension(pi) {
   let currentMode = DEFAULT_MODE;
   let configuredDefaultMode = getDefaultMode();
   let hideStatus = getHideStatus();
-  let isActive = false;
-  let lastCtx = null;
 
-  // -- Status bar --
-  function syncStatus(ctx) {
-    if (ctx) lastCtx = ctx;
-    const c = ctx || lastCtx;
-    // ponytail: hide the indicator but keep the ruleset active (#324).
-    if (hideStatus) return;
-    if (!c?.ui?.setStatus) return;
-    // ponytail: try/catch guards against pi-web theme proxy throwing before initTheme
-    let theme;
-    try { theme = c.ui.theme; if (!theme?.fg) return; } catch { return; }
-    if (currentMode === "off") {
-      c.ui.setStatus("ponytail", "");
-      return;
-    }
-    const levelIcons = { lite: "🌿", full: "⚡", ultra: "🔥" };
-    const icon = levelIcons[currentMode] || "";
-    const label = currentMode.toUpperCase();
-    const indicator = isActive ? theme.fg("accent", "●") : theme.fg("dim", "○");
-    c.ui.setStatus("ponytail", indicator + " 🐴 " + theme.fg("muted", "ponytail: ") + theme.fg("text", icon + " " + label));
+  function notify(ctx, message, type = "info") {
+    if (ctx.hasUI) ctx.ui.notify(message, type);
   }
 
-  const setMode = (mode, ctx) => {
-    const normalized = normalizePersistedMode(mode);
-    if (!normalized) return;
-
-    currentMode = normalized;
-    pi.appendEntry("ponytail-mode", { mode: normalized });
-    syncStatus(ctx);
-    ctx?.ui?.notify?.(`Ponytail mode set to ${normalized}.`, "info");
-  };
-
-  const sendAlias = (skillName, args, ctx) => {
-    const normalized = String(args || "").trim();
-    const message = normalized ? `${skillName} ${normalized}` : skillName;
-
-    if (ctx?.isIdle?.() === false) {
-      pi.sendUserMessage(message, { deliverAs: "followUp" });
-      ctx?.ui?.notify?.(`${skillName} queued as follow-up.`, "info");
-      return;
+  function syncStatus(ctx) {
+    if (ctx.hasUI) {
+      ctx.ui.setStatus("ponytail", hideStatus || currentMode === "off" ? undefined : `🐴 ponytail: ${currentMode.toUpperCase()}`);
     }
+  }
 
-    pi.sendUserMessage(message);
-  };
+  function setMode(mode, ctx) {
+    if (mode !== currentMode) {
+      currentMode = mode;
+      pi.appendEntry("ponytail-mode", { mode });
+    }
+    syncStatus(ctx);
+    notify(ctx, `Ponytail mode set to ${mode}.`);
+  }
+
+  function hydrate(_event, ctx) {
+    configuredDefaultMode = getDefaultMode();
+    hideStatus = getHideStatus();
+    const savedMode = resolveSessionMode(ctx.sessionManager.getBranch(), null);
+    currentMode = savedMode ?? configuredDefaultMode;
+    if (savedMode === null) pi.appendEntry("ponytail-mode", { mode: currentMode });
+    syncStatus(ctx);
+  }
 
   pi.registerCommand("ponytail", {
     description: PONYTAIL_COMMAND_DESCRIPTION,
@@ -117,7 +101,7 @@ export default function ponytailExtension(pi) {
       const parsed = parsePonytailCommand(args, configuredDefaultMode);
 
       if (parsed.type === "status") {
-        ctx?.ui?.notify?.(`Ponytail: current ${currentMode} • default ${configuredDefaultMode}`, "info");
+        notify(ctx, `Ponytail: current ${currentMode} • default ${configuredDefaultMode}`);
         return;
       }
 
@@ -129,10 +113,10 @@ export default function ponytailExtension(pi) {
             const message = configuredDefaultMode === written
               ? `Default Ponytail mode set to ${written}.`
               : `Saved default ${written}, but env override keeps default at ${configuredDefaultMode}.`;
-            ctx?.ui?.notify?.(message, "info");
+            notify(ctx, message);
           }
         } catch (e) {
-          ctx?.ui?.notify?.(`Failed to save default mode: ${e.message}`, "error");
+          notify(ctx, `Failed to save default mode: ${e.message}`, "error");
         }
         return;
       }
@@ -142,70 +126,53 @@ export default function ponytailExtension(pi) {
         return;
       }
 
-      ctx?.ui?.notify?.("Unknown or unsupported /ponytail mode.", "warning");
+      notify(ctx, "Unknown or unsupported /ponytail mode.", "warning");
     },
   });
 
-  pi.registerCommand("ponytail-review", {
-    description: "Run /skill:ponytail-review",
-    handler: (_args, ctx) => sendAlias("/skill:ponytail-review", "", ctx),
+  for (const name of ["ponytail-review", "ponytail-audit", "ponytail-gain", "ponytail-debt", "ponytail-help"]) {
+    pi.registerCommand(name, {
+      description: `Run /skill:${name}`,
+      handler: (args, ctx) => {
+        if (!pi.getCommands().some(command => command.source === "skill" && command.name === `skill:${name}`)) {
+          notify(ctx, `/${name} is disabled: /skill:${name} is not loaded. Check your Pi skill filters.`, "warning");
+          return;
+        }
+        const busy = !ctx.isIdle();
+        pi.sendUserMessage(`/skill:${name}${args ? ` ${args}` : ""}`, {
+          expandPromptTemplates: true,
+          ...(busy ? { deliverAs: "followUp" } : {}),
+        });
+        if (busy) notify(ctx, `/${name} queued as follow-up.`);
+      },
+    });
+  }
+
+  pi.on("input", (event, ctx) => {
+    if (event.source === "extension" || !isDeactivationCommand(event.text)) return;
+    setMode("off", ctx);
+    return { action: "handled" };
   });
 
-  pi.registerCommand("ponytail-audit", {
-    description: "Run /skill:ponytail-audit",
-    handler: (_args, ctx) => sendAlias("/skill:ponytail-audit", "", ctx),
+  pi.on("session_start", (event, ctx) => {
+    hydrate(event, ctx);
+    if (!getQuietStartup()) notify(ctx, `Ponytail loaded: ${currentMode}`);
+  });
+  pi.on("session_tree", hydrate);
+
+  pi.on("before_agent_start", event => {
+    const options = event.systemPromptOptions;
+    if (currentMode === "off") delete options.sections.ponytail;
+    else options.sections.ponytail = getPonytailInstructions(currentMode);
+    // Pi clones these descriptors per run; explicit skills and discovery stay intact.
+    const skill = options.skills.find(skill => skill.name === "ponytail" && realpathSync(skill.filePath) === coreSkillPath);
+    if (skill) skill.disableModelInvocation = true;
   });
 
-  pi.registerCommand("ponytail-gain", {
-    description: "Run /skill:ponytail-gain",
-    handler: (_args, ctx) => sendAlias("/skill:ponytail-gain", "", ctx),
-  });
-
-  pi.registerCommand("ponytail-debt", {
-    description: "Run /skill:ponytail-debt",
-    handler: (_args, ctx) => sendAlias("/skill:ponytail-debt", "", ctx),
-  });
-
-  pi.registerCommand("ponytail-help", {
-    description: "Run /skill:ponytail-help",
-    handler: (_args, ctx) => sendAlias("/skill:ponytail-help", "", ctx),
-  });
-
-  pi.on("input", async (event) => {
-    if (event?.source === "extension") return;
-
-    const text = String(event?.text || "");
-    if (currentMode !== "off" && isDeactivationCommand(text)) {
-      setMode("off");
-    }
-  });
-
-  pi.on("session_start", async (_event, ctx) => {
-    const entries = ctx?.sessionManager?.getBranch?.() || ctx?.sessionManager?.getEntries?.() || [];
-    configuredDefaultMode = getDefaultMode();
-    hideStatus = getHideStatus();
-    currentMode = resolveSessionMode(entries, configuredDefaultMode);
-    syncStatus(ctx);
-    if (!getQuietStartup()) {
-      ctx?.ui?.notify?.(`Ponytail loaded: ${currentMode}`, "info");
-    }
-  });
-
-  pi.on("agent_start", async (_event, ctx) => {
-    isActive = true;
-    syncStatus(ctx);
-  });
-
-  pi.on("agent_end", async (_event, ctx) => {
-    isActive = false;
-    syncStatus(ctx);
-  });
-
-  pi.on("before_agent_start", async (event) => {
-    if (!currentMode || currentMode === "off") return;
-    // Guard a null/undefined event or a missing systemPrompt: don't crash, and
-    // don't prepend the literal string "undefined" to the prompt (#439, #440).
-    const base = event?.systemPrompt ? `${event.systemPrompt}\n\n` : "";
-    return { systemPrompt: `${base}${getPonytailInstructions(currentMode)}` };
+  pi.on("context_with_system", event => {
+    const desired = currentMode === "off" ? null : `<ponytail>\n${getPonytailInstructions(currentMode)}\n</ponytail>`;
+    if ((getCurrentSystemMessage(event.messages)?.sections?.ponytail ?? null) === desired) return;
+    // Message sections are already rendered. Native forceSystemPrompt still takes precedence.
+    return { messages: [...event.messages, { role: "system", content: "", sections: { ponytail: desired }, timestamp: Date.now() }] };
   });
 }
