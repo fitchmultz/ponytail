@@ -1,7 +1,7 @@
 ---
 name: ponytail-help
 description: "Quick reference for ponytail's modes, skills, and commands. One-shot display."
-homepage: https://github.com/DietrichGebert/ponytail
+homepage: https://github.com/fitchmultz/ponytail
 license: MIT
 ---
 
@@ -31,9 +31,8 @@ Level sticks until changed or session end.
 | **ponytail-gain** | `/ponytail-gain` | Measured-impact scoreboard: less code, less cost, more speed. |
 | **ponytail-help** | `/ponytail-help` | This card. |
 
-Codex uses `@ponytail`, `@ponytail-review`, and `@ponytail-help`; Claude Code
-and OpenCode use the slash-command forms above (OpenCode ships all six as
-slash commands).
+Pi and slash-command hosts use the forms above. Codex uses `@ponytail`,
+`@ponytail-review`, `@ponytail-help` (and the other skill names the same way).
 
 ## Deactivate
 
@@ -61,10 +60,21 @@ Resolution: env var > config file > `full`.
 
 ## Update
 
-Enable auto-update once: open `/plugin`, go to Marketplaces, pick ponytail, Enable auto-update. Claude Code then pulls new versions at startup (run `/reload-plugins` when it prompts). Manual refresh: `/plugin marketplace update ponytail` then `/reload-plugins`.
+**Pi (this fork, current path):**
 
-If `/plugin` is not recognized, your Claude Code is out of date. Update it (`npm install -g @anthropic-ai/claude-code@latest`, or `brew upgrade claude-code`) and restart. Other hosts use their own update flow.
+```bash
+pi install git:github.com/fitchmultz/ponytail
+pi update --extensions
+# or one package: pi update git:github.com/fitchmultz/ponytail
+```
+
+Pinned git refs are not moved by `pi update --extensions`; reinstall with
+`pi install git:github.com/fitchmultz/ponytail@<ref>` to change the pin.
+
+**Other hosts:** use that host's package/plugin update flow (Claude Code
+marketplace update + reload, Codex/OpenCode/Hermes plugin or npm update, etc.).
 
 ## More
 
-Full docs + examples: https://github.com/DietrichGebert/ponytail
+Fork: https://github.com/fitchmultz/ponytail
+Upstream docs/examples: https://github.com/DietrichGebert/ponytail

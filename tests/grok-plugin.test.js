@@ -20,7 +20,7 @@ test('Grok manifest is a skill-only adapter with no lifecycle hooks', () => {
 
 test('Ponytail skill describes every coding task for Grok auto-invocation', () => {
   const skill = fs.readFileSync(path.join(root, 'skills', 'ponytail', 'SKILL.md'), 'utf8');
-  assert.match(skill, /Use on ANY\s+coding task/i);
-  assert.match(skill, /writing, adding, refactoring, fixing, reviewing, or designing\s+code/i);
+  assert.match(skill, /any\s+coding task/i);
+  assert.match(skill, /write, add, refactor,\s+fix, review, design/i);
   assert.doesNotMatch(skill, /disable-model-invocation:\s*true/i);
 });
