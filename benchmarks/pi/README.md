@@ -67,9 +67,13 @@ runtime may omit the effective compaction-settings getter; that field stays null
 
 Every cell starts from a fresh committed Git repository. Original tests are held by
 the parent runner, then written outside the agent working directory for grading.
-Grading never executes a replacement supplied by the agent. Changed/deleted supplied
-tests fail integrity checks even if behavioral checks pass. The holdout's extra checks
-are never copied into the working repository. They are published here for auditability,
+The independent check process never executes an agent-supplied replacement. The complete
+original test bytes must remain an unchanged prefix of `test.mjs`; append-only coverage
+is allowed. A separate process also runs the workspace's `test.mjs`, and both processes
+must pass. Review appended content for interference with existing checks; a prefix match
+alone cannot establish that. Changed/deleted original bytes fail integrity checks even
+if behavioral checks pass. The holdout's extra checks are never copied into the working
+repository. They are published here for auditability,
 not a secret or sandbox boundary: native Bash still has ordinary host access.
 
 Checks execute observable behavior, never reward line counts or demand a particular
@@ -90,9 +94,14 @@ failure and stop scheduling new cells. Keep artifacts private; raw prompts, tool
 can contain local information. Review before publishing.
 
 A successful cell requires final assistant `stop`, a successful process exit, valid
-JSON events, unchanged tests and passing independent checks, plus observed Astra/max/
-tools consistency. Assistant errors (including those followed by a retry), deadlines,
+JSON events, preserved original tests and passing independent and workspace checks,
+plus observed Astra/max/tools consistency. Assistant errors (including those followed by a retry), deadlines,
 extension errors, missing observer records and configuration/artifact changes fail. Exit zero alone never passes.
+
+If a grader defect requires reclassification, keep raw results untouched and produce
+separate versioned receipts for every arm and host, including original/corrected verdicts,
+input hashes, executed checks and manual review evidence. Preserve unrelated failures.
+
 Compare efficiency only for complete, runtime-matched pairs, while reporting failure
 rates for **all** scheduled cells. An interrupted harness can leave cells unrun; compare
 `planned` against `results` and do not silently discard them.

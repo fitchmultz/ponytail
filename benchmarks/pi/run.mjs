@@ -103,8 +103,14 @@ export function grade(workspace, checks, dir) {
     cwd: dir, env: { PATH: process.env.PATH, FIXTURE_WORKSPACE: workspace }, encoding: 'utf8', timeout: 15000,
   });
   writeFileSync(join(dir, 'validation.txt'), `${result.stdout ?? ''}\n${result.stderr ?? ''}`);
-  return { passed: result.status === 0, exitCode: result.status, error: result.error?.message ?? null,
-    testsUnchanged: fingerprint(join(workspace, 'test.mjs')) === hash(checks['original.test.mjs']) };
+  const workspaceResult = spawnSync(process.execPath, ['--test', 'test.mjs'], {
+    cwd: workspace, env: { PATH: process.env.PATH }, encoding: 'utf8', timeout: 15000,
+  });
+  writeFileSync(join(dir, 'workspace-validation.txt'), `${workspaceResult.stdout ?? ''}\n${workspaceResult.stderr ?? ''}`);
+  const original = Buffer.from(checks['original.test.mjs']), supplied = join(workspace, 'test.mjs');
+  return { passed: result.status === 0 && workspaceResult.status === 0, exitCode: result.status,
+    workspaceExitCode: workspaceResult.status, error: result.error?.message ?? workspaceResult.error?.message ?? null,
+    testsUnchanged: existsSync(supplied) && readFileSync(supplied).subarray(0, original.length).equals(original) };
 }
 
 export function parseEvents(raw) {
@@ -205,7 +211,7 @@ export async function run(config) {
       writeFileSync(join(dir, 'prompt.md'), f.prompt);
       json(join(dir, 'fixture.json'), { base: f.base, checks: Object.fromEntries(Object.entries(f.checks).map(([k, v]) => [k, hash(v)])) });
       const precheck = grade(f.workspace, f.checks, join(dir, 'before'));
-      if (precheck.passed || precheck.error) throw new Error('Original fixture must fail behavior checks without a harness error');
+      if (precheck.exitCode === 0 || precheck.error) throw new Error('Original fixture must fail behavior checks without a harness error');
       const args = ['--offline', '--no-approve', '--no-session', '--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes',
         '--mode', 'json', '-p', '--provider', config.provider, '--model', 'gpt-6-astra', '--thinking', 'max', '--tools', tools.join(',')];
       if (cell.arm === 'ponytail') args.push('-e', config.extension);

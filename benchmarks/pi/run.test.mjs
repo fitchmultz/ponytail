@@ -125,6 +125,37 @@ test('every original Git fixture fails, each complete solution passes, test tamp
   }
 });
 
+test('grading accepts appended coverage but rejects edits, replacement and deletion of supplied tests', t => {
+  const dir = scratch(t), f = fixture('shared-default', dir);
+  writeFileSync(join(f.workspace, 'defaults.mjs'), solutions['shared-default']['defaults.mjs']);
+  const path = join(f.workspace, 'test.mjs'), original = f.checks['original.test.mjs'];
+  writeFileSync(path, original + "\ntest('additional nullish coverage', () => assert.equal(withDefault(null, 42), 42));\n");
+  const extended = grade(f.workspace, f.checks, join(dir, 'extended'));
+  assert.equal(extended.passed, true);
+  assert.equal(extended.testsUnchanged, true, 'all supplied test bytes remain unchanged');
+  for (const [name, content] of [
+    ['edit', original.replace('assert.equal(pageSize({ pageSize: 0 }), 0);', '')],
+    ['replacement', "import test from 'node:test'; test('empty substitute', () => {});\n"],
+    ['truncation', original.slice(0, -1)],
+    ['deletion', null],
+  ]) {
+    if (content === null) rmSync(path);
+    else writeFileSync(path, content);
+    assert.equal(grade(f.workspace, f.checks, join(dir, name)).testsUnchanged, false, name);
+  }
+});
+
+test('grading independently runs originals and rejects a failing appended workspace test', t => {
+  const dir = scratch(t), f = fixture('shared-default', dir);
+  writeFileSync(join(f.workspace, 'defaults.mjs'), solutions['shared-default']['defaults.mjs']);
+  writeFileSync(join(f.workspace, 'test.mjs'), f.checks['original.test.mjs'] + "\ntest('failing added test', () => assert.fail('appended failure'));\n");
+  const result = grade(f.workspace, f.checks, join(dir, 'graded'));
+  assert.equal(result.passed, false, 'workspace test failure must reject an otherwise correct solution');
+  assert.equal(result.exitCode, 0, 'parent-held original checks still pass independently');
+  assert.equal(result.workspaceExitCode, 1);
+  assert.equal(result.testsUnchanged, true);
+});
+
 test('holdout checks reject a solution that only satisfies the public smoke examples', t => {
   const dir = scratch(t), f = fixture('holdout-ranges', dir);
   writeFileSync(join(f.workspace, 'ranges.mjs'), 'export const compactRanges = () => [[1, 5]];');
