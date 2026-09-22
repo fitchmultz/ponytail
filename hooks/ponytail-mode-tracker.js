@@ -8,6 +8,7 @@ const {
   cursorRuleNotice,
   cursorRulePath,
   isCursor,
+  isCopilot,
   isQoder,
   readMode,
   setMode,
@@ -59,7 +60,15 @@ function finish() {
         if (arg === 'default') {
           const dmode = parts[2];
           if (dmode === 'off' || dmode === 'lite' || dmode === 'full' || dmode === 'ultra') {
-            writeDefaultMode(dmode);
+            try {
+              writeDefaultMode(dmode);
+            } catch (error) {
+              const message = 'PONYTAIL DEFAULT NOT SAVED — ' + error.message;
+              writeHookOutput('UserPromptSubmit', readMode() || 'off', message);
+              // Copilot ignores UserPromptSubmit context; retain a local diagnostic.
+              if (isCopilot) process.stderr.write(message + '\n');
+              return;
+            }
             writeHookOutput('UserPromptSubmit', dmode, 'PONYTAIL DEFAULT SET — new sessions start in ' + dmode + '.');
           }
           return; // don't fall through to the session-mode switch

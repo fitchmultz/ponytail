@@ -463,6 +463,25 @@ assert.equal(result.status, 0, result.stderr);
 assert.equal(fs.readFileSync(defFlag, 'utf8'), 'ultra', 'plain switch must set the session mode');
 assert.equal(JSON.parse(fs.readFileSync(defConfig, 'utf8')).defaultMode, 'lite', 'plain switch must not persist the default');
 
+// Rejected configuration updates are visible through each host's output path.
+const brokenConfig = '{"keep": true,';
+for (const host of [
+  {},
+  { PLUGIN_DATA: pluginData },
+  { QODER_SESSION_ID: 'config-error-test' },
+  { CURSOR_VERSION: '3.20.17', CURSOR_PROJECT_DIR: defHome },
+  { COPILOT_PLUGIN_DATA: copilotData },
+]) {
+  fs.writeFileSync(defConfig, brokenConfig);
+  result = run('ponytail-mode-tracker.js', { ...defEnv, ...host }, JSON.stringify({ prompt: '/ponytail default lite' }));
+  assert.equal(result.status, 0, 'a default-write failure must not block the user prompt');
+  assert.match(result.stdout + result.stderr, /PONYTAIL DEFAULT NOT SAVED/);
+  assert.doesNotMatch(result.stdout, /PONYTAIL DEFAULT SET/);
+  assert.equal(fs.readFileSync(defConfig, 'utf8'), brokenConfig);
+  assert.equal(fs.readFileSync(defFlag, 'utf8'), 'ultra');
+}
+fs.writeFileSync(defConfig, JSON.stringify({ defaultMode: 'lite' }));
+
 // review is not a valid default (#377) — the command is ignored, config unchanged.
 result = run('ponytail-mode-tracker.js', defEnv, JSON.stringify({ prompt: '/ponytail default review' }));
 assert.equal(result.status, 0, result.stderr);
