@@ -1,5 +1,40 @@
 ---
-description: "Harvest ponytail: comments into a tracked debt ledger"
+description: "Harvest ponytail: shortcut comments into a debt ledger with ceilings and upgrade paths. One-shot report."
 ---
 
-Harvest every `ponytail:` comment in this repository into a debt ledger so deferrals do not rot into 'later means never'. Grep the whole tree for comment markers (grep -rnE '(#|//) ?ponytail:' ., skipping node_modules/.git/build output). One row per marker, grouped by file: <file>:<line>, <what was simplified>. ceiling: <the limit named in the comment>. upgrade: <the trigger to revisit>. Tag any marker that names no upgrade path or trigger as no-trigger, those rot silently. End with the count of markers and how many lack a trigger. If none: 'No ponytail: debt. Clean ledger.' Report only, change nothing.
+Every deliberate ponytail shortcut is marked with a `ponytail:` comment naming
+its ceiling and upgrade path. This collects them into one ledger so a deferral
+can't quietly become permanent.
+
+## Scan
+
+Grep the repo for comment markers, skipping `node_modules`, `.git`, and build
+output:
+
+`grep -rnE '(#|//) ?ponytail:' .`  (add other comment prefixes if your stack uses them)
+
+Each hit is one ledger row. The comment prefix keeps prose that merely mentions
+the convention out of the ledger.
+
+## Output
+
+One row per marker, grouped by file:
+
+`<file>:<line>, <what was simplified>. ceiling: <the limit named>. upgrade: <the trigger to revisit>.`
+
+The convention is `ponytail: <ceiling>, <upgrade path>`, so pull the ceiling
+and the trigger straight from the comment. Want an owner per row too? add
+`git blame -L<line>,<line>`.
+
+Flag the rot risk: any `ponytail:` comment that names no upgrade path or
+trigger gets a `no-trigger` tag, those are the ones that silently rot.
+
+End with `<N> markers, <M> with no trigger.` Nothing found: `No ponytail: debt. Clean ledger.`
+
+## Boundaries
+
+Reads and reports only, changes nothing. To persist it, ask and it writes the
+ledger to a file (e.g. `PONYTAIL-DEBT.md`). One-shot. "stop ponytail-debt" or
+"normal mode" to revert.
+
+User arguments: $ARGUMENTS

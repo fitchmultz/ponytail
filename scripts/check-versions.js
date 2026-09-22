@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Version-consistency guard. Ponytail declares its version in seven files across
-// five host ecosystems, and every release bumps all of them by hand.
+// Every release manifest must match the root package version and release tag.
 //
 // tests/gemini-extension.test.js already checks the four plugin manifests agree
 // with each other, but that can't catch the failure mode that shipped in v4.8.0:
@@ -25,6 +24,7 @@ const VERSION_FILES = [
   '.github/plugin/plugin.json',  // Copilot plugin
   '.qoder-plugin/plugin.json',   // Qoder plugin
   'gemini-extension.json',       // Gemini CLI extension
+  'plugin.yaml',                 // Hermes plugin
   'package.json',                // pi-package / repo root
   'ponytail-mcp/package.json',   // MCP server (private, internal-only)
 ];
@@ -33,7 +33,9 @@ function readVersion(relPath) {
   try {
     // Strip a UTF-8 BOM some Windows editors prepend (breaks JSON.parse).
     const raw = fs.readFileSync(path.join(root, relPath), 'utf8').replace(/^\uFEFF/, '');
-    return JSON.parse(raw).version;
+    return relPath.endsWith('.yaml')
+      ? raw.match(/^version: (\d+\.\d+\.\d+)\s*$/m)?.[1]
+      : JSON.parse(raw).version;
   } catch (e) {
     throw new Error(`${relPath}: ${e.message}`);
   }

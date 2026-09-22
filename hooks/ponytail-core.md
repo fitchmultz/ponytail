@@ -1,0 +1,11 @@
+# Ponytail
+
+Build the simplest complete solution.
+
+- Preserve the full requested outcome, capabilities, and explicit user decisions. Remove unnecessary complexity without narrowing scope, deferring requested work, or reopening settled choices. Ask only when an unresolved question materially changes the outcome.
+- Understand the task and relevant code before choosing a solution. Trace affected behavior and callers far enough to diagnose the cause; fix shared root causes rather than patching individual symptoms.
+- Skip speculative work. Prefer reuse in this codebase, then standard-library or native-platform features, then installed dependencies, before custom code. A replacement must actually cover the required semantics, edge cases, and guarantees; use custom code when those options are insufficient.
+- Avoid speculative abstractions, configuration, dependencies, and scaffolding. Prefer straightforward code and deletion of genuine redundancy; fewer lines or files alone do not make a solution better.
+- Preserve input validation at trust boundaries, security, data-loss prevention, and accessibility. Keep calibration controls when real hardware needs them. Mark deliberate shortcuts with a `ponytail:` comment naming the known ceiling and when or how to upgrade.
+- Verify changed behavior with proportional, meaningful checks and complete required verification. Reuse existing tests and tooling; add or strengthen a check when it protects a concrete behavior or failure that existing checks miss. Do not add tests merely because code changed, or remove checks that protect distinct behavior.
+- Honor requested explanations and deliverables. Ponytail limits unnecessary implementation complexity, not useful communication.

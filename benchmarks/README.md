@@ -1,4 +1,17 @@
-# Benchmark
+# Benchmarks
+
+## Native Pi / Astra
+
+The current Ponytail evaluation uses the [native Pi CLI runner](pi/README.md):
+paired, interleaved repository tasks; exact extension artifacts; preserved independent
+checks; and explicit error, timing and usage accounting. It compares baseline Astra
+with the supplied Ponytail extension on the official or fork CLI without a provider
+wrapper. Run its model-free checks with `node --test benchmarks/pi/run.test.mjs`.
+
+## Historical benchmarks
+
+The results below predate the Astra/v5 evaluation. They remain historical evidence for
+their stated models, revisions and methods, not validation of the current policy.
 
 Three arms (no skill, [caveman](https://github.com/JuliusBrussee/caveman), ponytail), three models, five everyday tasks, **10 runs per cell, median reported**. Code LOC is counted from fenced code blocks; tokens, cost, and latency come straight from the API.
 

@@ -12,11 +12,19 @@ test('root npm test covers bundled subprojects', () => {
 
   assert.match(packageJson.scripts.test, /npm test --prefix pi-extension/);
   assert.match(packageJson.scripts.test, /npm test --prefix ponytail-mcp/);
+  assert.match(packageJson.scripts.test, /node --test benchmarks\/pi\/run\.test\.mjs/);
 });
 
-test('CI installs MCP dependencies before root npm test', () => {
+test('fork tags cannot publish the upstream npm package', () => {
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish.yml'), 'utf8');
+  assert.match(workflow, /publish:\n    if: github\.repository == 'DietrichGebert\/ponytail'/);
+});
+
+test('CI installs native Pi and MCP dependencies before root npm test', () => {
   const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'test.yml'), 'utf8');
 
+  assert.match(workflow, /npm ci --ignore-scripts/);
+  assert.ok(workflow.indexOf('npm ci --ignore-scripts') < workflow.indexOf('npm test'));
   assert.match(workflow, /npm install --prefix ponytail-mcp/);
   assert.ok(
     workflow.indexOf('npm install --prefix ponytail-mcp') < workflow.indexOf('npm test'),

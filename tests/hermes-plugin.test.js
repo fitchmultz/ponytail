@@ -9,6 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { getPonytailInstructions } = require('../hooks/ponytail-instructions');
 
 const commands = ['ponytail', 'ponytail-review', 'ponytail-audit', 'ponytail-debt', 'ponytail-gain', 'ponytail-help'];
 const skillCommands = commands.filter((name) => name !== 'ponytail');
@@ -94,23 +95,17 @@ print(json.dumps({'skills': ctx.skills, 'hooks': ctx.hooks, 'commands': ctx.comm
   assert.ok(data.commands.includes('ponytail-review'));
 });
 
-test('Hermes plugin builds mode-aware injected context from the canonical skill', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ponytail-config-'));
+test('Hermes and Node emit identical canonical policy for every runtime mode', () => {
   const output = python(String.raw`
 import importlib.util, json
 spec = importlib.util.spec_from_file_location('ponytail_hermes_plugin', '__init__.py')
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
-ctx = mod.build_injected_context('ultra')
-print(json.dumps({'ctx': ctx}))
-`, { XDG_CONFIG_HOME: tmp });
-  const { ctx } = JSON.parse(output);
-
-  assert.match(ctx, /PONYTAIL MODE ACTIVE — level: ultra/);
-  assert.match(ctx, /The best\s+code is the code never written/);
-  assert.match(ctx, /ultra/i);
-  assert.doesNotMatch(ctx, /^---/);
-  assert.doesNotMatch(ctx, /\|\s*\*\*Lite\*\*/i);
+print(json.dumps({mode: mod.build_injected_context(mode) for mode in ['off', 'lite', 'full', 'ultra', ' ULTRA ']}))
+`);
+  for (const [mode, context] of Object.entries(JSON.parse(output))) {
+    assert.equal(context, getPonytailInstructions(mode));
+  }
 });
 
 test('Hermes mode config respects env, config file, off, and invalid command behavior', () => {
@@ -159,10 +154,33 @@ ctx = mod.build_injected_context('review')
 print(json.dumps({'ctx': ctx}))
 `);
   const { ctx } = JSON.parse(output);
-  assert.match(ctx, /PONYTAIL MODE ACTIVE — level: review/);
-  assert.match(ctx, /Review diffs for unnecessary complexity/);
-  assert.match(ctx, /net: -<N> lines possible/);
-  assert.doesNotMatch(ctx, /^---/);
+  const body = fs.readFileSync(path.join(root, 'skills', 'ponytail-review', 'SKILL.md'), 'utf8')
+    .replace(/\r\n/g, '\n').replace(/^---[\s\S]*?---\s*/, '');
+  assert.equal(ctx, 'PONYTAIL MODE ACTIVE — level: review\n\n' + body);
+});
+
+test('Hermes reports missing packaged core, modes, and legacy review instead of fallback guidance', () => {
+  const output = python(String.raw`
+import importlib.util, json, pathlib, tempfile
+spec = importlib.util.spec_from_file_location('ponytail_hermes_plugin', '__init__.py')
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+errors = {}
+with tempfile.TemporaryDirectory() as tmp:
+    for attribute, mode in [('CORE_POLICY', 'full'), ('MODE_POLICY', 'ultra'), ('REVIEW_SKILL', 'review')]:
+        original = getattr(mod, attribute)
+        setattr(mod, attribute, pathlib.Path(tmp) / original.name)
+        try:
+            mod.build_injected_context(mode)
+        except FileNotFoundError as error:
+            errors[attribute] = pathlib.Path(error.filename).name
+        finally:
+            setattr(mod, attribute, original)
+print(json.dumps(errors))
+`);
+  assert.deepEqual(JSON.parse(output), {
+    CORE_POLICY: 'ponytail-core.md', MODE_POLICY: 'ponytail-modes.json', REVIEW_SKILL: 'SKILL.md',
+  });
 });
 
 test('Hermes /ponytail command changes mode and pre_llm_call injects current context', () => {

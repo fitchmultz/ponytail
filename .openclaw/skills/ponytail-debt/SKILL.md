@@ -1,6 +1,6 @@
 ---
 name: ponytail-debt
-description: "Harvest every ponytail: shortcut comment into one debt ledger, so deferrals get tracked instead of forgotten. One-shot report."
+description: "Harvest ponytail: shortcut comments into a debt ledger with ceilings and upgrade paths. One-shot report."
 homepage: https://github.com/fitchmultz/ponytail
 license: MIT
 ---

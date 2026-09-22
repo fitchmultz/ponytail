@@ -82,7 +82,7 @@ test('csv: correct pandas one-liner passes', () => {
 df = pd.read_csv('sales.csv')
 print(df['amount'].sum())`,
   );
-  assert.equal(result.pass, true);
+  assert.equal(result.pass, true, result.reason);
   assert.equal(result.score, 1);
 });
 

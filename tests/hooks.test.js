@@ -37,6 +37,10 @@ delete process.env.COPILOT_PLUGIN_DATA;
 // A leaked subagent matcher would scope the inject-into-every-subagent assertions.
 delete process.env.PONYTAIL_SUBAGENT_MATCHER;
 delete process.env.QODER_SESSION_ID;
+// Cursor sets these only for hook processes, but a suite launched from a Cursor
+// hook would otherwise steer every case into the Cursor JSON branch (#817).
+delete process.env.CURSOR_VERSION;
+delete process.env.CURSOR_PROJECT_DIR;
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ponytail-hooks-'));
 // Runs on normal exit and on assertion-throw exit; force makes it idempotent.
@@ -197,6 +201,36 @@ assert.equal(
 );
 output = JSON.parse(result.stdout);
 assert.match(output.additionalContext, /PONYTAIL MODE ACTIVE — level: full/);
+
+// VS Code Copilot never sets COPILOT_PLUGIN_DATA — it only injects
+// CLAUDE_PLUGIN_ROOT pointed at an agent-plugins/.../.vscode install path
+// (#528). Without a fallback, isCopilot was false, so ponytail assumed
+// native Claude Code and emitted the statusline nudge — noise, since VS
+// Code Copilot doesn't read Claude's statusLine setting.
+const vscodeHome = path.join(temp, 'vscode-copilot-home');
+const vscodePluginRoot = path.join(
+  vscodeHome, '.vscode', 'agent-plugins', 'github.com', 'DietrichGebert', 'ponytail', 'hooks',
+);
+fs.mkdirSync(vscodeHome, { recursive: true });
+result = run('ponytail-activate.js', {
+  HOME: vscodeHome,
+  USERPROFILE: vscodeHome,
+  CLAUDE_PLUGIN_ROOT: vscodePluginRoot,
+  PONYTAIL_DEFAULT_MODE: 'full',
+});
+assert.equal(result.status, 0, result.stderr);
+assert.ok(
+  !result.stdout.includes('STATUSLINE SETUP NEEDED'),
+  'VS Code Copilot (detected via CLAUDE_PLUGIN_ROOT) must not get the Claude-only statusline nudge',
+);
+// isCopilot must still resolve a state dir even though COPILOT_PLUGIN_DATA
+// is unset under VS Code — falling back to ~/.claude, not crashing on an
+// undefined path.
+assert.equal(
+  fs.readFileSync(path.join(vscodeHome, '.claude', '.ponytail-active'), 'utf8'),
+  'full',
+  'VS Code Copilot must persist mode state under getClaudeDir(), not a path built from the unset COPILOT_PLUGIN_DATA',
+);
 
 result = run(
   'ponytail-mode-tracker.js',
@@ -428,6 +462,25 @@ result = run('ponytail-mode-tracker.js', defEnv, JSON.stringify({ prompt: '/pony
 assert.equal(result.status, 0, result.stderr);
 assert.equal(fs.readFileSync(defFlag, 'utf8'), 'ultra', 'plain switch must set the session mode');
 assert.equal(JSON.parse(fs.readFileSync(defConfig, 'utf8')).defaultMode, 'lite', 'plain switch must not persist the default');
+
+// Rejected configuration updates are visible through each host's output path.
+const brokenConfig = '{"keep": true,';
+for (const host of [
+  {},
+  { PLUGIN_DATA: pluginData },
+  { QODER_SESSION_ID: 'config-error-test' },
+  { CURSOR_VERSION: '3.20.17', CURSOR_PROJECT_DIR: defHome },
+  { COPILOT_PLUGIN_DATA: copilotData },
+]) {
+  fs.writeFileSync(defConfig, brokenConfig);
+  result = run('ponytail-mode-tracker.js', { ...defEnv, ...host }, JSON.stringify({ prompt: '/ponytail default lite' }));
+  assert.equal(result.status, 0, 'a default-write failure must not block the user prompt');
+  assert.match(result.stdout + result.stderr, /PONYTAIL DEFAULT NOT SAVED/);
+  assert.doesNotMatch(result.stdout, /PONYTAIL DEFAULT SET/);
+  assert.equal(fs.readFileSync(defConfig, 'utf8'), brokenConfig);
+  assert.equal(fs.readFileSync(defFlag, 'utf8'), 'ultra');
+}
+fs.writeFileSync(defConfig, JSON.stringify({ defaultMode: 'lite' }));
 
 // review is not a valid default (#377) — the command is ignored, config unchanged.
 result = run('ponytail-mode-tracker.js', defEnv, JSON.stringify({ prompt: '/ponytail default review' }));

@@ -15,13 +15,14 @@ SKILL_COMMANDS = {
     "ponytail-review": "Review the current diff or provided target for over-engineering.",
     "ponytail-audit": "Audit the repo for over-engineering and deletion opportunities.",
     "ponytail-debt": "List every deliberate `ponytail:` shortcut and its upgrade path.",
-    "ponytail-gain": "Show the measured-impact scoreboard (less code, less cost, more speed).",
+    "ponytail-gain": "Show the historical benchmark scoreboard and its limits.",
     "ponytail-help": "Show the Ponytail command reference.",
 }
 
 ROOT = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "skills"
-PONYTAIL_SKILL = SKILLS_DIR / "ponytail" / "SKILL.md"
+CORE_POLICY = ROOT / "hooks" / "ponytail-core.md"
+MODE_POLICY = ROOT / "hooks" / "ponytail-modes.json"
 REVIEW_SKILL = SKILLS_DIR / "ponytail-review" / "SKILL.md"
 
 _current_mode = None
@@ -67,59 +68,23 @@ def _strip_frontmatter(text: str) -> str:
     return re.sub(r"^---[\s\S]*?---\s*", "", text or "", count=1)
 
 
-def _filter_skill_body_for_mode(body: str, mode: str) -> str:
-    effective = _normalize_runtime_mode(mode) or DEFAULT_MODE
-    lines = []
-    for line in _strip_frontmatter(body).splitlines():
-        table_label = re.match(r"^\|\s*\*\*(.+?)\*\*\s*\|", line)
-        if table_label:
-            label_mode = _normalize_runtime_mode(table_label.group(1))
-            if label_mode and label_mode != effective:
-                continue
-
-        example_label = re.match(r"^-\s*([^:]+):\s*", line)
-        if example_label:
-            label_mode = _normalize_runtime_mode(example_label.group(1))
-            if label_mode and label_mode != effective:
-                continue
-
-        lines.append(line)
-    return "\n".join(lines)
-
-
-def _fallback_instructions(mode: str) -> str:
-    return (
-        f"PONYTAIL MODE ACTIVE — level: {mode}\n\n"
-        "You are a lazy senior developer. Lazy means efficient, not careless. "
-        "The best code is the code never written.\n\n"
-        "Before any code, stop at the first rung that holds: YAGNI, stdlib, "
-        "native platform, installed dependency, one line, then minimum code. "
-        "No unrequested abstractions, avoidable dependencies, boilerplate, or "
-        "speculative scaffolding. Deletion over addition. Boring over clever. "
-        "Do not simplify away trust-boundary validation, data-loss handling, "
-        "security, accessibility, explicitly requested behavior, or one small "
-        "runnable check for non-trivial logic."
-    )
-
-
 def build_injected_context(mode: str | None = None) -> str:
-    """Return the mode-filtered Ponytail context injected before LLM turns."""
+    """Read required packaged policy; missing assets are errors, never stale guidance."""
     configured = _normalize_config_mode(mode) or _default_mode()
     if configured == "off":
         return ""
     if configured == "review":
-        try:
-            body = REVIEW_SKILL.read_text(encoding="utf-8")
-            return f"PONYTAIL MODE ACTIVE — level: review\n\n{_strip_frontmatter(body)}"
-        except OSError:
-            return "PONYTAIL MODE ACTIVE — level: review. Review diffs for unnecessary complexity."
+        body = REVIEW_SKILL.read_text(encoding="utf-8")
+        return f"PONYTAIL MODE ACTIVE — level: review\n\n{_strip_frontmatter(body)}"
 
-    effective = _normalize_runtime_mode(configured) or DEFAULT_MODE
-    try:
-        body = PONYTAIL_SKILL.read_text(encoding="utf-8")
-        return f"PONYTAIL MODE ACTIVE — level: {effective}\n\n{_filter_skill_body_for_mode(body, effective)}"
-    except OSError:
-        return _fallback_instructions(effective)
+    core = CORE_POLICY.read_text(encoding="utf-8").strip()
+    modes = json.loads(MODE_POLICY.read_text(encoding="utf-8"))
+    if not core or not isinstance(modes[configured], str) or not modes[configured].strip():
+        raise ValueError(f"Invalid packaged Ponytail policy for {configured}")
+    return (
+        f"PONYTAIL MODE ACTIVE — level: {configured}\n\n{core}\n\n"
+        f"## Current level: {configured}\n\n{modes[configured]}\n"
+    )
 
 
 def _pre_llm_call(session_id: str = "", **_: Any) -> dict[str, str] | None:
