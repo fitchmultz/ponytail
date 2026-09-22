@@ -1,7 +1,7 @@
 import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { getCurrentSystemMessage } from "@earendil-works/pi-ai";
+import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
 
 const require = createRequire(import.meta.url);
 const {
@@ -170,9 +170,33 @@ export default function ponytailExtension(pi) {
   });
 
   pi.on("context_with_system", event => {
-    const desired = currentMode === "off" ? null : `<ponytail>\n${getPonytailInstructions(currentMode)}\n</ponytail>`;
-    if ((getCurrentSystemMessage(event.messages)?.sections?.ponytail ?? null) === desired) return;
-    // Message sections are already rendered. Native forceSystemPrompt still takes precedence.
-    return { messages: [...event.messages, { role: "system", content: "", sections: { ponytail: desired }, timestamp: Date.now() }] };
+    const desired = currentMode === "off" ? undefined : `<ponytail>\n${getPonytailInstructions(currentMode)}\n</ponytail>`;
+    const core = pi.getCommands().find(command => command.source === "skill" && command.name === "skill:ponytail" && realpathSync(command.sourceInfo.path) === coreSkillPath);
+    const corePrompt = core && formatSkillsForPrompt([{ name: "ponytail", description: core.description, filePath: core.sourceInfo.path }]).trim();
+    // Match only our exact native-rendered entry, never rebuild another extension's skills.
+    const coreEntry = corePrompt?.slice(corePrompt.indexOf("  <skill>"), corePrompt.lastIndexOf("</available_skills>"));
+    let changed = false;
+    const messages = event.messages.flatMap((message, index) => {
+      if (message.role !== "system") return [message];
+      const ponytail = index === 0 ? desired : undefined;
+      const skills = message.sections?.skills;
+      const filteredSkills = coreEntry && typeof skills === "string" ? skills.replace(coreEntry, "") : skills;
+      if (message.sections?.ponytail === ponytail && skills === filteredSkills) return [message];
+      changed = true;
+      const sections = { ...message.sections };
+      if (ponytail) sections.ponytail = ponytail;
+      else delete sections.ponytail;
+      if (skills !== filteredSkills) sections.skills = filteredSkills;
+      // Drop only exhausted Ponytail-only patches; retain every unrelated field and delta.
+      if (index > 0 && message.content === "" && Object.keys(sections).length === 0 &&
+          Object.keys(message).every(key => ["role", "content", "sections", "timestamp"].includes(key))) return [];
+      return [{ ...message, sections }];
+    });
+    if (desired && messages[0]?.role !== "system") {
+      messages.unshift({ role: "system", content: "", sections: { ponytail: desired }, timestamp: 0 });
+      changed = true;
+    }
+    // Only the owned section is projected at the stable head. Native forced prompts still win.
+    if (changed) return { messages };
   });
 }

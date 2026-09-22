@@ -21,7 +21,7 @@ const { getPonytailInstructions } = createRequire(import.meta.url)("../../hooks/
 const body = mode => `<ponytail>\n${getPonytailInstructions(mode)}\n</ponytail>`;
 const done = () => ai.fauxAssistantMessage("DONE");
 
-async function open(t, { extension = true, filtered = false, userSkill = false, defaultMode = "full", sessionFile, forced = false } = {}) {
+async function open(t, { extension = true, filtered = false, userSkill = false, defaultMode = "full", sessionFile, forced = false, customSkills = false } = {}) {
   Object.assign(process.env, { PONYTAIL_DEFAULT_MODE: defaultMode, PONYTAIL_HIDE_STATUS: "0", PONYTAIL_QUIET_STARTUP: "1" });
   const cwd = mkdtempSync(join(scratch, "project-"));
   const agentDir = join(cwd, "agent"), sessionDir = join(cwd, "sessions");
@@ -50,6 +50,10 @@ async function open(t, { extension = true, filtered = false, userSkill = false, 
         pi.on("before_agent_start", event => {
           starts.push(event.type);
           event.systemPromptOptions.sections.companion = "COMPANION";
+          if (customSkills) {
+            event.systemPromptOptions.skills.find(s => s.name === "ponytail-review").description = "PER-RUN REVIEW METADATA";
+            event.systemPromptOptions.skills.find(s => s.name === "ponytail-debt").disableModelInvocation = true;
+          }
           if (forced) return { systemPrompt: `${event.systemPrompt}\nFULL TAKEOVER` };
         });
         pi.registerTool({ name: "hold", label: "hold", description: "Test barrier", parameters: ai.Type.Object({ id: ai.Type.Number() }), async execute(_id, args) {
@@ -130,6 +134,52 @@ test("native unchanged loops retain one policy copy and every previous request m
   assert.equal(h.api.getCommands().filter(c => c.name === "skill:ponytail").length, 1);
 });
 
+test("native changed mode keeps the complete prefix through unchanged tools and the next ordinary turn", { timeout: 15000 }, async t => {
+  const h = await open(t);
+  const one = h.gate(), two = h.gate();
+  h.responses([h.tool(0), h.tool(1), done()]);
+  const running = h.session.prompt("CHANGE THEN STEADY");
+  await one.entered.promise;
+  await h.mode("lite");
+  one.release.resolve();
+  await two.entered.promise;
+  two.release.resolve();
+  await running;
+  await h.prompt("NEXT ORDINARY TURN");
+  assert.deepEqual(h.requests.map(section), [body("full"), body("lite"), body("lite"), body("lite")]);
+  h.requests.forEach(preserved);
+  for (let index = 2; index < h.requests.length; index++) {
+    const previous = h.requests[index - 1].messages;
+    assert.deepEqual(h.requests[index].messages.slice(0, previous.length), previous);
+  }
+  for (const request of h.requests) assert.equal(request.messages.filter(m => m.sections?.ponytail).length, 1);
+});
+
+test("native resumed standalone wakeup hides only packaged core metadata and retains per-run changes", { timeout: 15000 }, async t => {
+  const standalone = await open(t, { extension: false, customSkills: true });
+  await standalone.prompt("BEFORE EXTENSION");
+  assert.match(ai.getCurrentSystemPrompt(standalone.requests[0].messages), /<name>ponytail<\/name>/);
+  const h = await open(t, { sessionFile: standalone.session.sessionFile, customSkills: true });
+  await h.dispatched("/wake");
+  const prompt = ai.getCurrentSystemPrompt(h.requests[0].messages);
+  assert.doesNotMatch(prompt, /<name>ponytail<\/name>/);
+  assert.match(prompt, /PER-RUN REVIEW METADATA/);
+  assert.match(prompt, /<name>ponytail-audit<\/name>/);
+  assert.doesNotMatch(prompt, /<name>ponytail-debt<\/name>/);
+  assert.equal(section(h.requests[0]), body("full"));
+  preserved(h.requests[0]);
+  t.diagnostic(`Resumed wakeup before_agent_start calls: ${h.starts.length}`);
+});
+
+test("native resumed independent namesake skill remains in wakeup metadata", { timeout: 15000 }, async t => {
+  const standalone = await open(t, { extension: false, userSkill: true });
+  await standalone.prompt("BEFORE EXTENSION");
+  const h = await open(t, { sessionFile: standalone.session.sessionFile, userSkill: true });
+  await h.dispatched("/wake");
+  assert.match(ai.getCurrentSystemPrompt(h.requests[0].messages), /Independent user skill/);
+  assert.equal(section(h.requests[0]), body("full"));
+});
+
 test("native independently authored ponytail skill stays discoverable", { timeout: 15000 }, async t => {
   const h = await open(t, { userSkill: true });
   await h.prompt();
@@ -171,6 +221,7 @@ test("native idle custom-message wakeups receive the selected mode on both hosts
   await h.dispatched("/wake");
   assert.equal(h.requests.length, 1);
   assert.equal(section(h.requests[0]), body("lite"));
+  assert.doesNotMatch(ai.getCurrentSystemPrompt(h.requests[0].messages), /<name>ponytail<\/name>/);
 });
 
 test("native tree, fork, clone, new, compaction and file resume retain branch-local state", { timeout: 15000 }, async t => {

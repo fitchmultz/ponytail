@@ -1,0 +1,3 @@
+Add receiptLine(item, options) to receipt.mjs. It must return `${item.name}: ${formatted amount}`, where formatted amount is the existing shared money formatter's result for item.priceCents and options. Use the existing money formatting behavior rather than creating a second formatter. Keep invoiceTotal working exactly as before, including currency, locale, negative amounts and invalid-input behavior. The existing currency.mjs implementation is already approved; do not narrow its behavior to make the new receipt feature easier.
+
+Inspect the relevant modules, implement the complete feature, and run node --test test.mjs. Preserve the supplied tests and exports. Do not add dependencies. Work only in this repository and leave changes uncommitted.

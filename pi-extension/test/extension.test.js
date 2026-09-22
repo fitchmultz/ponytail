@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { getCurrentSystemMessage } from "@earendil-works/pi-ai";
+import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
 
 import ponytailExtension from "../index.js";
 
@@ -89,7 +90,7 @@ test("initial section is unwrapped and only the per-run base-skill descriptor is
   assert.equal(options.skills[0].disableModelInvocation, true);
 });
 
-test("request patches change only the owned section and unchanged requests return nothing", async t => {
+test("request projection changes only the owned section at the stable head", async t => {
   const h = harness(t);
   await h.emit("session_start");
   const messages = [
@@ -100,17 +101,60 @@ test("request patches change only the owned section and unchanged requests retur
   assert.equal(await h.emit("context_with_system", { messages }), undefined);
   await h.command("lite");
   const patched = await h.emit("context_with_system", { messages });
-  assert.deepEqual(patched.messages.slice(0, messages.length), original);
-  assert.equal(patched.messages[0], messages[0]);
-  assert.deepEqual(patched.messages.at(-1).sections, { ponytail: section("lite") });
+  assert.equal(patched.messages.length, messages.length);
+  assert.deepEqual(patched.messages[0], { ...messages[0], sections: { ...messages[0].sections, ponytail: section("lite") } });
+  assert.equal(patched.messages[1], messages[1]);
   assert.equal(getCurrentSystemMessage(patched.messages).sections.companion, "OTHER");
   assert.equal(await h.emit("context_with_system", { messages: patched.messages }), undefined);
   await h.command("off");
   const removed = await h.emit("context_with_system", { messages: patched.messages });
-  assert.deepEqual(removed.messages.at(-1).sections, { ponytail: null });
+  assert.deepEqual(removed.messages[0].sections, { companion: "OTHER" });
   assert.equal(getCurrentSystemMessage(removed.messages).sections.ponytail, undefined);
   assert.equal(await h.emit("context_with_system", { messages: removed.messages }), undefined);
   assert.deepEqual(messages, original);
+});
+
+test("request projection strips historical owned patches while preserving other sections, tools and fields", async t => {
+  const h = harness(t);
+  await h.emit("session_start");
+  await h.command("lite");
+  const messages = [
+    { role: "system", content: "CUSTOM", sections: { ponytail: section("full"), companion: "OLD" }, timestamp: 1 },
+    { role: "user", content: "TASK", timestamp: 2 },
+    { role: "system", content: "", sections: { ponytail: section("ultra") }, timestamp: 3 },
+    { role: "system", content: "ADDITIONAL", sections: { ponytail: null, companion: "NEW" }, toolsAdded: [{ name: "other" }], toolsRemoved: [{ name: "read" }], timestamp: 4, extra: "KEPT" },
+  ];
+  const original = structuredClone(messages);
+  const result = await h.emit("context_with_system", { messages });
+  assert.equal(result.messages.length, 3);
+  assert.equal(result.messages[0].sections.ponytail, section("lite"));
+  assert.equal(result.messages[1], messages[1]);
+  assert.deepEqual(result.messages[2], { ...messages[3], sections: { companion: "NEW" } });
+  assert.equal(getCurrentSystemMessage(result.messages).sections.ponytail, section("lite"));
+  assert.equal(getCurrentSystemMessage(result.messages).sections.companion, "NEW");
+  assert.deepEqual(messages, original);
+  assert.equal(await h.emit("context_with_system", { messages: result.messages }), undefined);
+});
+
+test("request metadata filtering removes only the exact packaged entry from native read and bash sections", async t => {
+  const h = harness(t);
+  await h.emit("session_start");
+  const core = { name: "ponytail", description: "OWN & <description>", filePath: fileURLToPath(new URL("../../skills/ponytail/SKILL.md", import.meta.url)) };
+  h.skills.push({ name: "skill:ponytail", source: "skill", description: core.description, sourceInfo: { path: core.filePath } });
+  const independent = { name: "ponytail", description: "INDEPENDENT", filePath: "/independent/SKILL.md" };
+  const other = { name: "other", description: "PER-RUN METADATA", filePath: "/other/SKILL.md" };
+  for (const tool of ["read", "bash"]) {
+    const render = skills => `<skills>\n${formatSkillsForPrompt(skills, tool).trim()}\n</skills>`;
+    const skills = render([core, independent, other]) + "\nOTHER EXTENSION SUFFIX";
+    const messages = [{ role: "system", content: "OPAQUE <name>ponytail</name>", sections: { ponytail: section("full"), skills, companion: "OTHER" }, timestamp: 1 }];
+    const original = structuredClone(messages);
+    const result = await h.emit("context_with_system", { messages });
+    assert.deepEqual(result.messages, [{ ...messages[0], sections: { ...messages[0].sections, skills: render([independent, other]) + "\nOTHER EXTENSION SUFFIX" } }]);
+    assert.deepEqual(messages, original);
+    assert.equal(await h.emit("context_with_system", { messages: result.messages }), undefined);
+    const custom = [{ ...messages[0], sections: { skills: "CUSTOM SKILLS" } }];
+    assert.equal((await h.emit("context_with_system", { messages: custom })).messages[0].sections.skills, "CUSTOM SKILLS");
+  }
 });
 
 test("request hook installs policy even without before_agent_start", async t => {

@@ -12,6 +12,7 @@ test('root npm test covers bundled subprojects', () => {
 
   assert.match(packageJson.scripts.test, /npm test --prefix pi-extension/);
   assert.match(packageJson.scripts.test, /npm test --prefix ponytail-mcp/);
+  assert.match(packageJson.scripts.test, /node --test benchmarks\/pi\/run\.test\.mjs/);
 });
 
 test('fork tags cannot publish the upstream npm package', () => {
