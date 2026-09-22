@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -148,4 +149,21 @@ test("filterSkillBodyForMode keeps rule bullets that contain a colon", () => {
   assert.ok(filtered.includes("| **full** |"));
   assert.ok(!filtered.includes("| **lite** |"));
   assert.ok(!filtered.includes("| **ultra** |"));
+});
+
+test("missing skill file preserves scope and proportional verification", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "ponytail-fallback-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const hooks = join(root, "hooks");
+  mkdirSync(hooks);
+  for (const name of ["ponytail-instructions.js", "ponytail-config.js"]) {
+    copyFileSync(new URL(`../../hooks/${name}`, import.meta.url), join(hooks, name));
+  }
+  const { getPonytailInstructions } = createRequire(import.meta.url)(join(hooks, "ponytail-instructions.js"));
+  const instructions = getPonytailInstructions("ultra");
+  assert.match(instructions, /^PONYTAIL MODE ACTIVE — level: ultra/);
+  assert.match(instructions, /Complete the requested outcome with the simplest working implementation/);
+  assert.match(instructions, /Reuse existing tests and the project's normal tooling/);
+  assert.match(instructions, /Complete required checks; do not add tests merely because code changed/);
+  assert.doesNotMatch(instructions, /Ship the lazy version|Code first|three short lines|ONE runnable check|delete the explanation/);
 });
