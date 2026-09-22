@@ -121,7 +121,7 @@ test('sessionStart injects the default-level ruleset as additional_context and k
   const output = parse(run('ponytail-activate.js', c.env, input));
   assert.deepEqual(Object.keys(output), ['additional_context']);
   assert.match(output.additional_context, /^PONYTAIL MODE ACTIVE — level: ultra/);
-  assert.match(output.additional_context, /YAGNI extremist/, 'ultra row must survive the level filter');
+  assert.match(output.additional_context, /\| \*\*ultra\*\* \|/, 'ultra row must survive the level filter');
   assert.doesNotMatch(output.additional_context, /Build what's asked/, 'lite row must be filtered out');
   assert.doesNotMatch(output.additional_context, /STATUSLINE SETUP NEEDED/, 'Cursor has no Claude statusline to nudge about');
   assert.equal(fs.readFileSync(c.flag, 'utf8'), 'ultra');

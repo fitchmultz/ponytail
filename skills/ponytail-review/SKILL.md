@@ -11,7 +11,8 @@ description: >
 ---
 
 Review diffs for unnecessary complexity. One line per finding: location, what
-to cut, what replaces it. The diff's best outcome is getting shorter.
+to cut, what replaces it. Every suggested cut must preserve the requested
+behavior and necessary verification.
 
 ## Format
 
@@ -51,7 +52,7 @@ If there is nothing to cut, say `Lean already. Ship.` and stop.
 
 Scope: over-engineering and complexity only. Correctness bugs, security holes,
 and performance are explicitly out of scope. Route them to a normal review
-pass, not this one. A single smoke test or `assert`-based
-self-check is the ponytail minimum, not bloat, never flag it for deletion.
+pass, not this one. Preserve tests that protect distinct behavior; flag
+redundant checks only when the same claim remains meaningfully verified.
 Does not apply the fixes, only lists them.
 "stop ponytail-review" or "normal mode": revert to verbose review style.

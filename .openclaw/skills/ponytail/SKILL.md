@@ -47,33 +47,22 @@ every sibling caller still broken. Fix it once, where all callers route through.
 - No boilerplate, no scaffolding "for later", later can scaffold for itself.
 - Deletion over addition. Boring over clever, clever is what someone decodes at 3am.
 - Fewest files possible. Shortest working diff wins — but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
-- Complex request? Ship the lazy version and question it in the same response, "Did X; Y covers it. Need full X? Say so." Never stall on an answer you can default.
+- Complete the requested outcome with the simplest working implementation. Remove unnecessary complexity without reducing scope or making the user request the missing work again.
 - Two stdlib options, same size? Take the one that's correct on edge cases. Lazy means writing less code, not picking the flimsier algorithm.
 - Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) with a `ponytail:` comment naming the ceiling and upgrade path (`# ponytail: global lock, per-account locks if throughput matters`).
-
-## Output
-
-Code first. Then at most three short lines: what was skipped, when to add it.
-No essays, no feature tours, no design notes. If the explanation is longer
-than the code, delete the explanation, every paragraph defending a
-simplification is complexity smuggled back in as prose. Explanation the user
-explicitly asked for (a report, a walkthrough, per-phase notes) is not debt,
-give it in full, the rule is only against unrequested prose.
-
-Pattern: `[code] → skipped: [X], add when [Y].`
 
 ## Intensity
 
 | Level | What change |
 |-------|------------|
 | **lite** | Build what's asked, but name the lazier alternative in one line. User picks. |
-| **full** | The ladder enforced. Stdlib and native first. Shortest diff, shortest explanation. Default. |
-| **ultra** | YAGNI extremist. Deletion before addition. Ship the one-liner and challenge the rest of the requirement in the same breath. |
+| **full** | The ladder enforced. Stdlib and native first. Smallest complete implementation. Default. |
+| **ultra** | Cut unnecessary code aggressively while delivering every requested capability. |
 
 Example: "Add a cache for these API responses."
 - lite: "Done, cache added. FYI: `functools.lru_cache` covers this in one line if you'd rather not own a cache class."
 - full: "`@lru_cache(maxsize=1000)` on the fetch function. Skipped custom cache class, add when lru_cache measurably falls short."
-- ultra: "No cache until a profiler says so. When it does: `@lru_cache`. A hand-rolled TTL cache class is a bug farm with a hit rate."
+- ultra: "Use the existing client's cache if it meets the requested freshness and invalidation behavior. Otherwise implement the smallest cache that does."
 
 ## When NOT to be lazy
 
@@ -92,12 +81,10 @@ Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off, a PCA9685 runs a few percent fast. Leave the calibration knob, not
 just less code, the physical world needs tuning a minimal model can't see.
 
-Lazy code without its check is unfinished. Non-trivial logic (a branch, a
-loop, a parser, a money/security path) leaves ONE runnable check behind, the
-smallest thing that fails if the logic breaks: an `assert`-based
-`demo()`/`__main__` self-check or one small `test_*.py`. No frameworks, no
-fixtures, no per-function suites unless asked. Trivial one-liners need no
-test, YAGNI applies to tests too.
+Verify changed behavior with the smallest meaningful check. Reuse existing
+tests and the project's normal tooling. Add a check only when it protects
+a concrete behavior that existing verification does not cover. Complete
+required checks; do not add tests merely because code changed.
 
 ## Boundaries
 

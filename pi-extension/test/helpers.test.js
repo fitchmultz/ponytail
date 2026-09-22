@@ -147,5 +147,5 @@ test("filterSkillBodyForMode keeps rule bullets that contain a colon", () => {
   // The Intensity examples are still filtered down to the active mode.
   assert.ok(filtered.includes('full: "`@lru_cache'));
   assert.ok(!filtered.includes('lite: "Done'));
-  assert.ok(!filtered.includes('ultra: "No cache'));
+  assert.ok(!filtered.includes('- ultra: "'));
 });
