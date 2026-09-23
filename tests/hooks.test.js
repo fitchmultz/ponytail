@@ -515,10 +515,6 @@ assert.equal(result.status, 0, result.stderr);
 assert.equal(fs.readFileSync(qoderState, 'utf8'), 'lite');
 assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /PONYTAIL MODE CHANGED — level: lite/);
 
-// Subagent injection via PreToolUse (task|Task matcher): when ponytail is
-// active, the subagent hook injects the ruleset. Qoder shares the same
-// ponytail-subagent.js script; the isQoder branch outputs hookSpecificOutput
-// JSON instead of raw stdout.
 fs.writeFileSync(qoderState, 'full');
 result = run('ponytail-subagent.js', qoderEnv);
 assert.equal(result.status, 0, result.stderr);
