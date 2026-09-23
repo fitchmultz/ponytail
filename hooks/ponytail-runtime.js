@@ -71,7 +71,7 @@ function readMode(sessionId) {
   }
 }
 
-function withHookInput(callback, timeoutMs = 1000) {
+function withHookInput(callback) {
   let input = '';
   let done = false;
   function finish(parsed) {
@@ -91,7 +91,7 @@ function withHookInput(callback, timeoutMs = 1000) {
   });
   process.stdin.on('end', () => finish());
   process.stdin.on('error', () => { finish(); process.stdin.destroy(); });
-  setTimeout(() => { finish(); process.stdin.destroy(); }, timeoutMs).unref();
+  setTimeout(() => { finish(); process.stdin.destroy(); }, 1000).unref();
 }
 
 // Cursor's always-on project rule (.cursor/rules/ponytail.mdc) already puts the
