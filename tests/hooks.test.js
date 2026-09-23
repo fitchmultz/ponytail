@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const assert = require('assert');
+const { createHash } = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -362,13 +363,15 @@ assert.match(output.hookSpecificOutput.additionalContext, /PONYTAIL MODE ACTIVE 
 // the ruleset via additionalContext on every prompt. Output is
 // hookSpecificOutput JSON (same shape as Codex minus systemMessage).
 const qoderHome = path.join(temp, 'qoder-home');
-const qoderState = path.join(qoderHome, '.qoder', '.ponytail-active');
+const qoderSession = 'test-session-123';
+const qoderState = path.join(qoderHome, '.qoder', '.ponytail-sessions',
+  createHash('sha256').update(qoderSession).digest('hex'), '.ponytail-active');
 fs.mkdirSync(qoderHome, { recursive: true });
 
 const qoderEnv = {
   HOME: qoderHome,
   USERPROFILE: qoderHome,
-  QODER_SESSION_ID: 'test-session-123',
+  QODER_SESSION_ID: qoderSession,
   PONYTAIL_DEFAULT_MODE: 'full',
 };
 
@@ -418,6 +421,15 @@ for (const prompt of ['/ponytail off', 'stop ponytail', 'normal mode']) {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, '', 'subagents must stay off too');
 }
+
+// Turning ponytail off in one Qoder session must not disable a new session.
+const otherQoderEnv = { ...qoderEnv, QODER_SESSION_ID: 'another-session' };
+result = run('ponytail-mode-tracker.js', otherQoderEnv, JSON.stringify({ prompt: 'write a function' }));
+assert.equal(result.status, 0, result.stderr);
+assert.notEqual(result.stdout, '', 'a new session must receive the configured default');
+assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /PONYTAIL MODE ACTIVE — level: full/);
+result = run('ponytail-mode-tracker.js', qoderEnv, JSON.stringify({ prompt: 'continue' }));
+assert.equal(result.stdout, '', 'the original session must remain off');
 
 // An explicit level switch can turn the saved off mode back on.
 result = run('ponytail-mode-tracker.js', qoderEnv, JSON.stringify({ prompt: '/ponytail lite' }));
