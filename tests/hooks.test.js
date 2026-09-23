@@ -143,6 +143,7 @@ assert.equal(
   fs.readFileSync(path.join(home, '.claude', '.ponytail-active'), 'utf8'),
   'full',
 );
+assert.equal(run('ponytail-statusline.js', claudeEnv).stdout, '\x1b[38;5;108m[PONYTAIL]\x1b[0m');
 
 const sessionHooks = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'claude-codex-hooks.json'), 'utf8')).hooks.SessionStart;
 const startupHooks = sessionHooks.filter(({ matcher }) => matcher.split('|').includes('startup'));
@@ -172,6 +173,49 @@ assert.match(result.stdout, /PONYTAIL MODE ACTIVE — level: ultra/);
 result = run('ponytail-activate.js', claudeEnv);
 assert.equal(result.status, 0, result.stderr);
 assert.equal(fs.readFileSync(claudeFlag, 'utf8'), 'full', 'new sessions still use the default');
+
+// Two conversations share a plugin install but must not share their mode.
+for (const [host, env, command] of [
+  ['Claude', { ...claudeEnv, CLAUDE_CONFIG_DIR: path.join(temp, 'multi-claude') }, '/ponytail ultra'],
+  ['Codex', { ...codexEnv, PLUGIN_DATA: path.join(temp, 'multi-codex'), PONYTAIL_DEFAULT_MODE: 'full' }, '@ponytail ultra'],
+]) {
+  const a = { session_id: `${host}-a` };
+  const b = { session_id: `${host}-b` };
+  const c = { session_id: `${host}-c` };
+  run('ponytail-activate.js', env, JSON.stringify({ ...a, source: 'startup' }));
+  run('ponytail-mode-tracker.js', env, JSON.stringify({ ...a, prompt: command }));
+  run('ponytail-activate.js', env, JSON.stringify({ ...b, source: 'startup' }));
+
+  result = run('ponytail-activate.js', env, JSON.stringify({ ...a, source: 'compact' }), '--restore');
+  assert.match(result.stdout, /PONYTAIL MODE ACTIVE — level: ultra/, `${host}: B must not reset A's level`);
+  result = run('ponytail-subagent.js', env, JSON.stringify(a));
+  assert.match(result.stdout, /PONYTAIL MODE ACTIVE — level: ultra/, `${host}: A's subagent must use A's level`);
+  if (host === 'Claude') {
+    assert.equal(run('ponytail-statusline.js', env, JSON.stringify(a)).stdout, '\x1b[38;5;173m[PONYTAIL:ULTRA]\x1b[0m');
+  }
+
+  run('ponytail-mode-tracker.js', env, JSON.stringify({ ...a, prompt: 'stop ponytail' }));
+  run('ponytail-activate.js', env, JSON.stringify({ ...c, source: 'startup' }));
+  result = run('ponytail-activate.js', env, JSON.stringify({ ...b, source: 'resume' }), '--restore');
+  assert.match(result.stdout, /PONYTAIL MODE ACTIVE — level: full/, `${host}: B stays at its default`);
+  result = run('ponytail-activate.js', env, JSON.stringify({ ...a, source: 'resume' }), '--restore');
+  assert.doesNotMatch(result.stdout, /PONYTAIL MODE ACTIVE/, `${host}: A must stay off`);
+  result = run('ponytail-subagent.js', env, JSON.stringify(a));
+  assert.equal(result.stdout, '', `${host}: A's subagent must stay off`);
+
+  if (host === 'Claude') {
+    assert.equal(run('ponytail-statusline.js', env, JSON.stringify(a)).stdout, '');
+    const badge = '\x1b[38;5;108m[PONYTAIL]\x1b[0m';
+    assert.equal(run('ponytail-statusline.js', env, JSON.stringify(b)).stdout, badge);
+    if (process.platform !== 'win32') {
+      const shell = spawnSync('bash', [path.join(root, 'hooks', 'ponytail-statusline.sh')], {
+        env: { ...process.env, ...env }, input: JSON.stringify(b), encoding: 'utf8',
+      });
+      assert.equal(shell.status, 0, shell.stderr);
+      assert.equal(shell.stdout, badge);
+    }
+  }
+}
 
 // CLAUDE_CONFIG_DIR overrides ~/.claude for the flag file (issue #34).
 const home2 = path.join(temp, 'home2');

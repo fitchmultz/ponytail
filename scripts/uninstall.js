@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ponytail — removes state ponytail wrote outside the plugin's own files:
-// the mode flag, the config file, the statusLine entry it added to
+// the mode flags, the config file, the statusLine entry it added to
 // settings.json, and its entries in ~/.cursor/hooks.json. Plugin files
 // themselves are removed by each host's own uninstall command (see README);
 // this only cleans up what those commands can't see.
@@ -23,6 +23,11 @@ function removeIfExists(filePath, label) {
 }
 
 removeIfExists(path.join(getClaudeDir(), '.ponytail-active'), 'mode flag');
+const sessionsDir = path.join(getClaudeDir(), '.ponytail-sessions');
+if (fs.existsSync(sessionsDir)) {
+  fs.rmSync(sessionsDir, { recursive: true });
+  console.log(`Removed session modes: ${sessionsDir}`);
+}
 removeIfExists(path.join(os.homedir(), '.cursor', '.ponytail-active'), 'Cursor mode flag');
 removeIfExists(getConfigPath(), 'config file');
 
