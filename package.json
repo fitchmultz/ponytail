@@ -54,7 +54,8 @@
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "0.87.1",
-    "@earendil-works/pi-coding-agent": "0.87.1"
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "cross-spawn": "7.0.6"
   },
   "publishConfig": {
     "access": "public"

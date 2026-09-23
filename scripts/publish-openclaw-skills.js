@@ -7,6 +7,7 @@
 // instead of drifting (the same drift that hit the plugin manifests in #260).
 //
 // Prereqs:
+//   - `npm ci --ignore-scripts` for the cross-platform process launcher
 //   - `clawhub login` once (registry auth persists)
 //   - skills must be current: run `node scripts/build-openclaw-skills.js` first
 //     if you changed a skill (CI fails if the committed copies are stale)
@@ -18,7 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { sync: spawnSync } = require('cross-spawn');
 
 const root = path.join(__dirname, '..');
 const skillsDir = path.join(root, '.openclaw', 'skills');
@@ -42,26 +43,21 @@ if (slugs.length === 0) {
 const displayName = (slug) =>
   slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-// Minimal quoting that satisfies both POSIX sh and cmd.exe: only display names
-// (which contain a space) need wrapping; slugs, versions, paths, and flags don't.
-const quote = (a) => (/[^\w./-]/.test(a) ? `"${a}"` : a);
-
 const passthrough = process.argv.slice(2);
 const extra = passthrough.length ? ` (${passthrough.join(' ')})` : '';
 console.log(`Publishing ${slugs.length} skills to ClawHub at version ${version}${extra}:`);
 
 for (const slug of slugs) {
   const args = [
-    'clawhub', 'skill', 'publish', `.openclaw/skills/${slug}`,
+    'skill', 'publish', `.openclaw/skills/${slug}`,
     '--slug', slug,
     '--name', displayName(slug),
     '--version', version,
     '--tags', 'latest',
     ...passthrough,
   ];
-  const cmdline = args.map(quote).join(' ');
-  console.log(`\n$ ${cmdline}`);
-  const res = spawnSync(cmdline, { stdio: 'inherit', cwd: root, shell: true });
+  console.log(`\nclawhub ${JSON.stringify(args)}`);
+  const res = spawnSync('clawhub', args, { stdio: 'inherit', cwd: root });
   if (res.status !== 0) {
     console.error(
       `\nPublish failed for "${slug}" (exit ${res.status}). ` +
