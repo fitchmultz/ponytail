@@ -54,7 +54,8 @@
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "0.87.1",
-    "@earendil-works/pi-coding-agent": "0.87.1"
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@npmcli/promise-spawn": "9.0.1"
   },
   "publishConfig": {
     "access": "public"

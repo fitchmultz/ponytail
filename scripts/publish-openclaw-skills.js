@@ -7,6 +7,7 @@
 // instead of drifting (the same drift that hit the plugin manifests in #260).
 //
 // Prereqs:
+//   - `npm ci --ignore-scripts` for the cross-platform process launcher
 //   - `clawhub login` once (registry auth persists)
 //   - skills must be current: run `node scripts/build-openclaw-skills.js` first
 //     if you changed a skill (CI fails if the committed copies are stale)
@@ -18,7 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const spawn = require('@npmcli/promise-spawn');
 
 const root = path.join(__dirname, '..');
 const skillsDir = path.join(root, '.openclaw', 'skills');
@@ -42,34 +43,36 @@ if (slugs.length === 0) {
 const displayName = (slug) =>
   slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-// Minimal quoting that satisfies both POSIX sh and cmd.exe: only display names
-// (which contain a space) need wrapping; slugs, versions, paths, and flags don't.
-const quote = (a) => (/[^\w./-]/.test(a) ? `"${a}"` : a);
-
 const passthrough = process.argv.slice(2);
 const extra = passthrough.length ? ` (${passthrough.join(' ')})` : '';
 console.log(`Publishing ${slugs.length} skills to ClawHub at version ${version}${extra}:`);
 
-for (const slug of slugs) {
-  const args = [
-    'clawhub', 'skill', 'publish', `.openclaw/skills/${slug}`,
-    '--slug', slug,
-    '--name', displayName(slug),
-    '--version', version,
-    '--tags', 'latest',
-    ...passthrough,
-  ];
-  const cmdline = args.map(quote).join(' ');
-  console.log(`\n$ ${cmdline}`);
-  const res = spawnSync(cmdline, { stdio: 'inherit', cwd: root, shell: true });
-  if (res.status !== 0) {
-    console.error(
-      `\nPublish failed for "${slug}" (exit ${res.status}). ` +
-      `Check that the clawhub CLI is installed and you have run \`clawhub login\`, then re-run. ` +
-      `Skills already published in this run are unaffected.`,
-    );
-    process.exit(res.status || 1);
+async function publish() {
+  for (const slug of slugs) {
+    const args = [
+      'skill', 'publish', `.openclaw/skills/${slug}`,
+      '--slug', slug,
+      '--name', displayName(slug),
+      '--version', version,
+      '--tags', 'latest',
+      ...passthrough,
+    ];
+    console.log(`\nclawhub ${JSON.stringify(args)}`);
+    try {
+      // npm's launcher escapes both parsing passes of Windows .cmd shims.
+      await spawn('clawhub', args, { stdio: 'inherit', cwd: root, shell: process.platform === 'win32' });
+    } catch (error) {
+      const exitCode = typeof error.code === 'number' ? error.code : 1;
+      console.error(
+        `\nPublish failed for "${slug}" (exit ${exitCode}). ` +
+        `Check that the clawhub CLI is installed and you have run \`clawhub login\`, then re-run. ` +
+        `Skills already published in this run are unaffected.`,
+      );
+      process.exit(exitCode);
+    }
   }
+
+  console.log(`\nDone. Published ${slugs.length} skills at ${version}.`);
 }
 
-console.log(`\nDone. Published ${slugs.length} skills at ${version}.`);
+publish();
