@@ -7,4 +7,4 @@ withHookInput(({ session_id: sessionId }) => {
   const color = mode === 'ultra' ? 173 : 108;
   const label = mode === 'full' ? 'PONYTAIL' : `PONYTAIL:${mode.toUpperCase()}`;
   process.stdout.write(`\x1b[38;5;${color}m[${label}]\x1b[0m`);
-}, 100);
+});

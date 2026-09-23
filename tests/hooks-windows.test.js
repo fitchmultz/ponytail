@@ -129,6 +129,39 @@ test('session hooks exit even when stdin never closes', async t => {
   }
 });
 
+test('statusline reads session JSON delivered after process startup', async t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ponytail-delayed-input-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const env = {
+    ...process.env, HOME: home, USERPROFILE: home,
+    CLAUDE_CONFIG_DIR: path.join(home, '.claude'), PONYTAIL_DEFAULT_MODE: 'full',
+  };
+  for (const key of ['PLUGIN_DATA', 'COPILOT_PLUGIN_DATA', 'CURSOR_VERSION', 'QODER_SESSION_ID']) delete env[key];
+  const session = { session_id: 'delayed-session' };
+  for (const [file, payload] of [
+    ['ponytail-activate.js', { ...session, source: 'startup' }],
+    ['ponytail-mode-tracker.js', { ...session, prompt: '/ponytail ultra' }],
+  ]) {
+    const result = spawnSync(process.execPath, [path.join(root, 'hooks', file)], {
+      env, input: JSON.stringify(payload), encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  const child = spawn(process.execPath, [path.join(root, 'hooks', 'ponytail-statusline.js')], {
+    env, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  child.stdout.on('data', chunk => { stdout += chunk; });
+  const code = new Promise((resolve, reject) => {
+    child.on('exit', resolve);
+    child.on('error', reject);
+  });
+  await new Promise(resolve => setTimeout(resolve, 250));
+  if (child.exitCode === null) child.stdin.end(JSON.stringify(session));
+  assert.equal(await code, 0);
+  assert.match(stdout, /\[PONYTAIL:ULTRA\]/);
+});
+
 test('PowerShell statusline uses the current session mode', { skip: process.platform !== 'win32' }, t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ponytail-statusline-'));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
@@ -156,15 +189,7 @@ test('PowerShell statusline uses the current session mode', { skip: process.plat
   hook('ponytail-activate.js', { ...a, source: 'startup' });
   hook('ponytail-mode-tracker.js', { ...a, prompt: '/ponytail ultra' });
   hook('ponytail-activate.js', { ...b, source: 'startup' });
-  const direct = spawnSync(process.execPath, [path.join(root, 'hooks', 'ponytail-statusline.js')], {
-    env, input: JSON.stringify(a), encoding: 'utf8',
-  });
-  const probe = path.join(home, 'probe.ps1');
-  fs.writeFileSync(probe, '$raw = $input | Out-String; [Console]::Write("RAW:" + $raw.Length)');
-  const powershellInput = spawnSync('powershell', ['-NoProfile', '-File', probe], {
-    env, input: JSON.stringify(a), encoding: 'utf8',
-  });
-  assert.match(status(a), /\[PONYTAIL:ULTRA\]/, `direct=${JSON.stringify(direct.stdout)} (${direct.status}); PowerShell=${JSON.stringify(powershellInput.stdout)} (${powershellInput.status}), stderr=${JSON.stringify(powershellInput.stderr)}`);
+  assert.match(status(a), /\[PONYTAIL:ULTRA\]/);
   assert.match(status(b), /\[PONYTAIL\]/);
   hook('ponytail-mode-tracker.js', { ...a, prompt: 'stop ponytail' });
   assert.doesNotMatch(status(a), /PONYTAIL/);

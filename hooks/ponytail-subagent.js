@@ -37,6 +37,6 @@ function inject({ session_id: sessionId, agent_type: agentType } = {}) {
 
 // Qoder, Copilot and Cursor keep their existing host flag and need no stdin
 // without a matcher. Claude/Codex need the parent session ID to avoid reading
-// another conversation's mode. A short timeout keeps broken Windows pipes fast.
+// another conversation's mode. The bounded reader also handles broken Windows pipes.
 if (!matcherRe && (isQoder || isCopilot || isCursor)) inject();
-else withHookInput(inject, matcherRe ? 1000 : 100);
+else withHookInput(inject);
