@@ -7,7 +7,7 @@ const { spawnSync } = require('node:child_process');
 
 for (const [syntax, releaseNotes] of [
   ['command substitution', (marker) => `Release notes: $(echo injected > "${marker}")`],
-  ['quoted metacharacters', (marker) => `x" & echo injected > "${marker}" & rem "`],
+  ['quoted metacharacters', () => 'x" & echo PONYTAIL_WINDOWS_INJECTION & rem "'],
 ]) {
   test(`publishing passes ${syntax} literally without executing shell commands`, (t) => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ponytail-publish-'));
@@ -37,6 +37,7 @@ require('node:fs').appendFileSync(process.env.PONYTAIL_TEST_LOG, JSON.stringify(
 
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.equal(fs.existsSync(marker), false, 'release-note text must not run as a command');
+    assert.doesNotMatch(result.stdout, /^PONYTAIL_WINDOWS_INJECTION\r?$/m);
     const calls = fs.readFileSync(log, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     assert.ok(calls.length > 0, 'the fake publisher must be invoked');
     for (const call of calls) assert.deepEqual(call.slice(-args.length), args);

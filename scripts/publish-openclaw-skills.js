@@ -19,7 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { sync: spawnSync } = require('cross-spawn');
+const spawn = require('@npmcli/promise-spawn');
 
 const root = path.join(__dirname, '..');
 const skillsDir = path.join(root, '.openclaw', 'skills');
@@ -47,25 +47,32 @@ const passthrough = process.argv.slice(2);
 const extra = passthrough.length ? ` (${passthrough.join(' ')})` : '';
 console.log(`Publishing ${slugs.length} skills to ClawHub at version ${version}${extra}:`);
 
-for (const slug of slugs) {
-  const args = [
-    'skill', 'publish', `.openclaw/skills/${slug}`,
-    '--slug', slug,
-    '--name', displayName(slug),
-    '--version', version,
-    '--tags', 'latest',
-    ...passthrough,
-  ];
-  console.log(`\nclawhub ${JSON.stringify(args)}`);
-  const res = spawnSync('clawhub', args, { stdio: 'inherit', cwd: root });
-  if (res.status !== 0) {
-    console.error(
-      `\nPublish failed for "${slug}" (exit ${res.status}). ` +
-      `Check that the clawhub CLI is installed and you have run \`clawhub login\`, then re-run. ` +
-      `Skills already published in this run are unaffected.`,
-    );
-    process.exit(res.status || 1);
+async function publish() {
+  for (const slug of slugs) {
+    const args = [
+      'skill', 'publish', `.openclaw/skills/${slug}`,
+      '--slug', slug,
+      '--name', displayName(slug),
+      '--version', version,
+      '--tags', 'latest',
+      ...passthrough,
+    ];
+    console.log(`\nclawhub ${JSON.stringify(args)}`);
+    try {
+      // npm's launcher escapes both parsing passes of Windows .cmd shims.
+      await spawn('clawhub', args, { stdio: 'inherit', cwd: root, shell: process.platform === 'win32' });
+    } catch (error) {
+      const exitCode = typeof error.code === 'number' ? error.code : 1;
+      console.error(
+        `\nPublish failed for "${slug}" (exit ${exitCode}). ` +
+        `Check that the clawhub CLI is installed and you have run \`clawhub login\`, then re-run. ` +
+        `Skills already published in this run are unaffected.`,
+      );
+      process.exit(exitCode);
+    }
   }
+
+  console.log(`\nDone. Published ${slugs.length} skills at ${version}.`);
 }
 
-console.log(`\nDone. Published ${slugs.length} skills at ${version}.`);
+publish();
