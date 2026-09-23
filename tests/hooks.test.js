@@ -402,16 +402,28 @@ assert.match(
   /PONYTAIL MODE CHANGED — level: ultra/,
 );
 
-// "stop ponytail": deactivates, clears flag, no ruleset output.
-result = run(
-  'ponytail-mode-tracker.js',
-  qoderEnv,
-  JSON.stringify({ prompt: 'stop ponytail' }),
-);
+// Each off command must stay off on subsequent prompts, including subagents.
+for (const prompt of ['/ponytail off', 'stop ponytail', 'normal mode']) {
+  fs.writeFileSync(qoderState, 'ultra');
+  result = run('ponytail-mode-tracker.js', qoderEnv, JSON.stringify({ prompt }));
+  assert.equal(result.status, 0, result.stderr);
+  output = JSON.parse(result.stdout);
+  assert.equal(output.hookSpecificOutput.additionalContext, 'PONYTAIL MODE OFF');
+
+  result = run('ponytail-mode-tracker.js', qoderEnv, JSON.stringify({ prompt: 'continue' }));
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, '', `${prompt} must stay off on the next prompt`);
+
+  result = run('ponytail-subagent.js', qoderEnv);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, '', 'subagents must stay off too');
+}
+
+// An explicit level switch can turn the saved off mode back on.
+result = run('ponytail-mode-tracker.js', qoderEnv, JSON.stringify({ prompt: '/ponytail lite' }));
 assert.equal(result.status, 0, result.stderr);
-assert.equal(fs.existsSync(qoderState), false, 'flag must be cleared after stop ponytail');
-output = JSON.parse(result.stdout);
-assert.equal(output.hookSpecificOutput.additionalContext, 'PONYTAIL MODE OFF');
+assert.equal(fs.readFileSync(qoderState, 'utf8'), 'lite');
+assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /PONYTAIL MODE CHANGED — level: lite/);
 
 // Subagent injection via PreToolUse (task|Task matcher): when ponytail is
 // active, the subagent hook injects the ruleset. Qoder shares the same
