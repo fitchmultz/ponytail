@@ -19,8 +19,8 @@ assert.equal(isShellSafe('/tmp/a"&calc.exe&"/x.sh'), false);
 assert.equal(isShellSafe('/tmp/$(calc)/x.sh'), false);
 assert.equal(isShellSafe('/tmp/a;rm -rf/x.sh'), false);
 
-function run(script, env, input = '') {
-  return spawnSync(process.execPath, [path.join(root, 'hooks', script)], {
+function run(script, env, input = '', ...args) {
+  return spawnSync(process.execPath, [path.join(root, 'hooks', script), ...args], {
     env: { ...process.env, ...env },
     input,
     encoding: 'utf8',
@@ -108,6 +108,11 @@ assert.equal(fs.existsSync(codexState), false);
 output = JSON.parse(result.stdout);
 assert.equal(output.systemMessage, 'PONYTAIL:OFF');
 
+result = run('ponytail-activate.js', codexEnv, '', '--restore');
+assert.equal(result.status, 0, result.stderr);
+assert.equal(fs.existsSync(codexState), false, 'compaction must preserve an explicit off mode');
+assert.equal(JSON.parse(result.stdout).systemMessage, 'PONYTAIL:OFF');
+
 // A request that merely mentions "normal mode" must not deactivate ponytail.
 result = run('ponytail-mode-tracker.js', codexEnv, JSON.stringify({ prompt: '@ponytail lite' }));
 assert.equal(result.status, 0, result.stderr);
@@ -138,6 +143,35 @@ assert.equal(
   fs.readFileSync(path.join(home, '.claude', '.ponytail-active'), 'utf8'),
   'full',
 );
+
+const sessionHooks = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'claude-codex-hooks.json'), 'utf8')).hooks.SessionStart;
+const startupHooks = sessionHooks.filter(({ matcher }) => matcher.split('|').includes('startup'));
+assert.equal(startupHooks.length, 1);
+assert.doesNotMatch(startupHooks[0].hooks[0].command, /--restore/);
+for (const source of ['resume', 'compact']) {
+  const matching = sessionHooks.filter(({ matcher }) => matcher.split('|').includes(source));
+  assert.equal(matching.length, 1, `${source} must run only one activation hook`);
+  assert.match(matching[0].hooks[0].command, /ponytail-activate\.js" --restore$/);
+}
+
+const claudeFlag = path.join(home, '.claude', '.ponytail-active');
+result = run('ponytail-mode-tracker.js', claudeEnv, JSON.stringify({ prompt: 'stop ponytail' }));
+assert.equal(result.status, 0, result.stderr);
+assert.equal(fs.existsSync(claudeFlag), false);
+result = run('ponytail-activate.js', claudeEnv, '', '--restore');
+assert.equal(result.status, 0, result.stderr);
+assert.equal(fs.existsSync(claudeFlag), false, 'compaction must not re-enable ponytail');
+assert.doesNotMatch(result.stdout, /PONYTAIL MODE ACTIVE/);
+
+result = run('ponytail-mode-tracker.js', claudeEnv, JSON.stringify({ prompt: '/ponytail ultra' }));
+assert.equal(result.status, 0, result.stderr);
+result = run('ponytail-activate.js', claudeEnv, '', '--restore');
+assert.equal(result.status, 0, result.stderr);
+assert.equal(fs.readFileSync(claudeFlag, 'utf8'), 'ultra', 'compaction must preserve the selected level');
+assert.match(result.stdout, /PONYTAIL MODE ACTIVE — level: ultra/);
+result = run('ponytail-activate.js', claudeEnv);
+assert.equal(result.status, 0, result.stderr);
+assert.equal(fs.readFileSync(claudeFlag, 'utf8'), 'full', 'new sessions still use the default');
 
 // CLAUDE_CONFIG_DIR overrides ~/.claude for the flag file (issue #34).
 const home2 = path.join(temp, 'home2');

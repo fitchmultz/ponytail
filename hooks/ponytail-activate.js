@@ -18,6 +18,7 @@ const {
   isCodex,
   isCopilot,
   isCursor,
+  readMode,
   setMode,
   writeHookOutput,
 } = require('./ponytail-runtime');
@@ -25,7 +26,8 @@ const {
 const claudeDir = getClaudeDir();
 const settingsPath = path.join(claudeDir, 'settings.json');
 
-const mode = getDefaultMode();
+// Resume and compaction must reuse the chosen mode; a missing flag means off.
+const mode = process.argv[2] === '--restore' ? (readMode() || 'off') : getDefaultMode();
 
 // "off" mode — skip activation entirely, don't write flag or emit rules
 if (mode === 'off') {
