@@ -47,4 +47,5 @@ jobs:
           node-version: '22'
           package-manager-cache: false
       - run: npm ci --ignore-scripts
+      - run: node --test tests/hooks-windows.test.js
       - run: node --test tests/publish-openclaw-skills.test.js

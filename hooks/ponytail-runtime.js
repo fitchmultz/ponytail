@@ -42,24 +42,56 @@ if (isCursor) stateDir = path.join(os.homedir(), '.cursor');
 
 const statePath = path.join(stateDir, STATE_FILE);
 
-function setMode(mode) {
-  fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  fs.writeFileSync(statePath, mode);
+function modePath(sessionId) {
+  // ponytail: hosts without Claude/Codex session IDs keep the legacy flag;
+  // migrate their own lifecycle when session isolation is needed there.
+  if (isCopilot || isCursor || isQoder || typeof sessionId !== 'string' || !sessionId) return statePath;
+  const session = createHash('sha256').update(sessionId).digest('hex');
+  return path.join(stateDir, '.ponytail-sessions', session, STATE_FILE);
 }
 
-function clearMode() {
+function setMode(mode, sessionId) {
+  const file = modePath(sessionId);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, mode);
+}
+
+function clearMode(sessionId) {
   // Qoder initializes missing state on every prompt, so preserve an explicit off.
-  if (isQoder) return setMode('off');
-  try { fs.unlinkSync(statePath); } catch (e) {}
+  if (isQoder) return setMode('off', sessionId);
+  try { fs.unlinkSync(modePath(sessionId)); } catch (e) {}
 }
 
 // Live mode written by activate/mode-tracker. Absent flag = ponytail off.
-function readMode() {
+function readMode(sessionId) {
   try {
-    return fs.readFileSync(statePath, 'utf8').trim() || null;
+    return fs.readFileSync(modePath(sessionId), 'utf8').trim() || null;
   } catch (e) {
     return null;
   }
+}
+
+function withHookInput(callback) {
+  let input = '';
+  let done = false;
+  function finish(parsed) {
+    if (done) return;
+    done = true;
+    if (parsed === undefined) {
+      try { parsed = JSON.parse(input.replace(/^\uFEFF/, '')); } catch (e) { parsed = {}; }
+    }
+    callback(parsed && typeof parsed === 'object' ? parsed : {});
+  }
+  process.stdin.on('data', chunk => {
+    input += chunk;
+    let parsed;
+    try { parsed = JSON.parse(input.replace(/^\uFEFF/, '')); } catch (e) { return; }
+    finish(parsed);
+    process.stdin.destroy();
+  });
+  process.stdin.on('end', () => finish());
+  process.stdin.on('error', () => { finish(); process.stdin.destroy(); });
+  setTimeout(() => { finish(); process.stdin.destroy(); }, 1000).unref();
 }
 
 // Cursor's always-on project rule (.cursor/rules/ponytail.mdc) already puts the
@@ -146,5 +178,6 @@ module.exports = {
   isQoder,
   readMode,
   setMode,
+  withHookInput,
   writeHookOutput,
 };

@@ -10,8 +10,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const HOOKS_JSON = 'hooks/claude-codex-hooks.json';
@@ -104,6 +105,94 @@ test('ponytail-mode-tracker self-exits when stdin never closes (no freeze)', asy
   });
 
   assert.equal(code, 0, 'hook must exit cleanly when stdin never closes');
+});
+
+test('session hooks exit even when stdin never closes', async t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ponytail-open-stdin-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const env = {
+    ...process.env, HOME: home, USERPROFILE: home,
+    CLAUDE_CONFIG_DIR: path.join(home, '.claude'), PONYTAIL_DEFAULT_MODE: 'full',
+  };
+  for (const key of ['PLUGIN_DATA', 'COPILOT_PLUGIN_DATA', 'CURSOR_VERSION', 'QODER_SESSION_ID']) delete env[key];
+
+  for (const file of ['ponytail-activate.js', 'ponytail-subagent.js', 'ponytail-statusline.js']) {
+    const child = spawn(process.execPath, [path.join(root, 'hooks', file)], {
+      env, stdio: ['pipe', 'ignore', 'ignore'],
+    });
+    const code = await new Promise((resolve, reject) => {
+      const guard = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`${file} hung on open stdin`)); }, 3000);
+      child.on('exit', c => { clearTimeout(guard); resolve(c); });
+      child.on('error', reject);
+    });
+    assert.equal(code, 0, `${file} must exit cleanly`);
+  }
+});
+
+test('statusline reads session JSON delivered after process startup', async t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ponytail-delayed-input-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const env = {
+    ...process.env, HOME: home, USERPROFILE: home,
+    CLAUDE_CONFIG_DIR: path.join(home, '.claude'), PONYTAIL_DEFAULT_MODE: 'full',
+  };
+  for (const key of ['PLUGIN_DATA', 'COPILOT_PLUGIN_DATA', 'CURSOR_VERSION', 'QODER_SESSION_ID']) delete env[key];
+  const session = { session_id: 'delayed-session' };
+  for (const [file, payload] of [
+    ['ponytail-activate.js', { ...session, source: 'startup' }],
+    ['ponytail-mode-tracker.js', { ...session, prompt: '/ponytail ultra' }],
+  ]) {
+    const result = spawnSync(process.execPath, [path.join(root, 'hooks', file)], {
+      env, input: JSON.stringify(payload), encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  const child = spawn(process.execPath, [path.join(root, 'hooks', 'ponytail-statusline.js')], {
+    env, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  child.stdout.on('data', chunk => { stdout += chunk; });
+  const code = new Promise((resolve, reject) => {
+    child.on('exit', resolve);
+    child.on('error', reject);
+  });
+  await new Promise(resolve => setTimeout(resolve, 250));
+  if (child.exitCode === null) child.stdin.end(JSON.stringify(session));
+  assert.equal(await code, 0);
+  assert.match(stdout, /\[PONYTAIL:ULTRA\]/);
+});
+
+test('PowerShell statusline uses the current session mode', { skip: process.platform !== 'win32' }, t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ponytail-statusline-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const env = {
+    ...process.env, HOME: home, USERPROFILE: home,
+    CLAUDE_CONFIG_DIR: path.join(home, '.claude'), PONYTAIL_DEFAULT_MODE: 'full',
+  };
+  for (const key of ['PLUGIN_DATA', 'COPILOT_PLUGIN_DATA', 'CURSOR_VERSION', 'QODER_SESSION_ID']) delete env[key];
+  const a = { session_id: 'session-a' };
+  const b = { session_id: 'session-b' };
+  function hook(file, payload) {
+    const result = spawnSync(process.execPath, [path.join(root, 'hooks', file)], {
+      env, input: JSON.stringify(payload), encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  function status(payload) {
+    const result = spawnSync('powershell', [
+      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+      path.join(root, 'hooks', 'ponytail-statusline.ps1'),
+    ], { env, input: JSON.stringify(payload), encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout;
+  }
+  hook('ponytail-activate.js', { ...a, source: 'startup' });
+  hook('ponytail-mode-tracker.js', { ...a, prompt: '/ponytail ultra' });
+  hook('ponytail-activate.js', { ...b, source: 'startup' });
+  assert.match(status(a), /\[PONYTAIL:ULTRA\]/);
+  assert.match(status(b), /\[PONYTAIL\]/);
+  hook('ponytail-mode-tracker.js', { ...a, prompt: 'stop ponytail' });
+  assert.doesNotMatch(status(a), /PONYTAIL/);
 });
 
 test('Claude and Codex manifests point at the shared host-specific hook config', () => {
