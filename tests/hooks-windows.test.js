@@ -156,7 +156,15 @@ test('PowerShell statusline uses the current session mode', { skip: process.plat
   hook('ponytail-activate.js', { ...a, source: 'startup' });
   hook('ponytail-mode-tracker.js', { ...a, prompt: '/ponytail ultra' });
   hook('ponytail-activate.js', { ...b, source: 'startup' });
-  assert.match(status(a), /\[PONYTAIL:ULTRA\]/);
+  const direct = spawnSync(process.execPath, [path.join(root, 'hooks', 'ponytail-statusline.js')], {
+    env, input: JSON.stringify(a), encoding: 'utf8',
+  });
+  const probe = path.join(home, 'probe.ps1');
+  fs.writeFileSync(probe, '$raw = $input | Out-String; [Console]::Write("RAW:" + $raw.Length)');
+  const powershellInput = spawnSync('powershell', ['-NoProfile', '-File', probe], {
+    env, input: JSON.stringify(a), encoding: 'utf8',
+  });
+  assert.match(status(a), /\[PONYTAIL:ULTRA\]/, `direct=${JSON.stringify(direct.stdout)} (${direct.status}); PowerShell=${JSON.stringify(powershellInput.stdout)} (${powershellInput.status}), stderr=${JSON.stringify(powershellInput.stderr)}`);
   assert.match(status(b), /\[PONYTAIL\]/);
   hook('ponytail-mode-tracker.js', { ...a, prompt: 'stop ponytail' });
   assert.doesNotMatch(status(a), /PONYTAIL/);
