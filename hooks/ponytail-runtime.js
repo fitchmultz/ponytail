@@ -44,6 +44,8 @@ function setMode(mode) {
 }
 
 function clearMode() {
+  // Qoder initializes missing state on every prompt, so preserve an explicit off.
+  if (isQoder) return setMode('off');
   try { fs.unlinkSync(statePath); } catch (e) {}
 }
 
