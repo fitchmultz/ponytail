@@ -33,13 +33,15 @@ test('qoder plugin manifest exists and has required fields', () => {
   assert.equal(manifest.hooks, './hooks/qoder-hooks.json');
 });
 
-test('qoder hooks config exists and registers UserPromptSubmit', () => {
+test('qoder hooks config registers prompt and subagent start hooks', () => {
   const hooksConfig = readJSON('hooks/qoder-hooks.json');
   assert.ok(hooksConfig.hooks, 'hooks config must have a hooks key');
   assert.ok(hooksConfig.hooks.UserPromptSubmit, 'must register UserPromptSubmit hook');
   assert.ok(Array.isArray(hooksConfig.hooks.UserPromptSubmit), 'UserPromptSubmit must be an array');
   const cmd = hooksConfig.hooks.UserPromptSubmit[0].hooks[0].command;
   assert.ok(cmd.includes('ponytail-mode-tracker.js'), 'must point at ponytail-mode-tracker.js');
+  const subagentHook = hooksConfig.hooks.SubagentStart?.[0]?.hooks[0];
+  assert.ok(subagentHook?.command.includes('ponytail-subagent.js'), 'must inject the ruleset at SubagentStart');
 });
 
 test('qoder rules file exists and is non-empty', () => {
