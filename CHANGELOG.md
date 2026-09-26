@@ -4,7 +4,7 @@
 
 ### Runtime
 
-- Requires Node.js 24.15 or newer. CI runs on Node 24 (from `.node-version`) and Python 3.14.
+- Requires Node.js 24.15 or newer.
 - Dependencies are exact pins on their latest stable releases, and both lockfiles were regenerated from scratch. A test fails if a lockfile resolves from anywhere but `https://registry.npmjs.org/`.
 
 ### Pi
@@ -15,7 +15,6 @@
 
 - Moves to MCP TypeScript SDK v2 (`@modelcontextprotocol/server` 2.1.0) and zod 4. Tool schemas are published as JSON Schema 2020-12.
 - `prompts/get` accepts requests without `arguments`, since `mode` is optional.
-- A stdio test exercises the prompt and tool through a raw JSON-RPC client.
 
 Install with `pi install git:github.com/fitchmultz/ponytail@v6.0.0`.
 

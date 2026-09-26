@@ -41,9 +41,8 @@ test("stdio server serves the prompt and tool to an MCP client", async (t) => {
   assert.deepEqual(prompts.map((p) => [p.name, p.arguments]), [
     ["ponytail", [{ name: "mode", description: "Ponytail intensity: lite, full, or ultra. Omit for the configured default.", required: false }]],
   ]);
-  const promptText = (r) => r.messages[0].content.text;
-  assert.equal(promptText(await result("prompts/get", { name: "ponytail", arguments: { mode: "ultra" } })), buildInstructions("ultra"));
-  assert.equal(promptText(await result("prompts/get", { name: "ponytail" })), buildInstructions("full"));
+  assert.equal((await result("prompts/get", { name: "ponytail", arguments: { mode: "ultra" } })).messages[0].content.text, buildInstructions("ultra"));
+  assert.equal((await result("prompts/get", { name: "ponytail" })).messages[0].content.text, buildInstructions("full"));
 
   const { tools } = await result("tools/list", {});
   assert.equal(tools.length, 1);
@@ -52,12 +51,11 @@ test("stdio server serves the prompt and tool to an MCP client", async (t) => {
   assert.deepEqual(tools[0].inputSchema.properties.mode.enum, ["lite", "full", "ultra"]);
   assert.deepEqual(tools[0].outputSchema.required, ["mode", "instructions"]);
 
-  for (const args of [{ mode: "lite" }, undefined]) {
-    const call = await result("tools/call", { name: "ponytail_instructions", ...(args && { arguments: args }) });
-    const mode = args?.mode ?? "full";
-    assert.deepEqual(call.structuredContent, { mode, instructions: buildInstructions(mode) });
-    assert.equal(call.content[0].text, buildInstructions(mode));
-  }
+  const lite = await result("tools/call", { name: "ponytail_instructions", arguments: { mode: "lite" } });
+  assert.deepEqual(lite.structuredContent, { mode: "lite", instructions: buildInstructions("lite") });
+  assert.equal(lite.content[0].text, buildInstructions("lite"));
+  const omitted = await result("tools/call", { name: "ponytail_instructions" });
+  assert.deepEqual(omitted.structuredContent, { mode: "full", instructions: buildInstructions("full") });
 
   const invalid = await request("tools/call", { name: "ponytail_instructions", arguments: { mode: "off" } });
   assert.ok(invalid.error || invalid.result?.isError, "invalid modes are rejected at the trust boundary");

@@ -28,8 +28,7 @@ test('lockfiles resolve only from the public npm registry', () => {
   for (const lockfile of ['package-lock.json', 'ponytail-mcp/package-lock.json']) {
     const { packages } = JSON.parse(fs.readFileSync(path.join(root, lockfile), 'utf8'));
     for (const [name, entry] of Object.entries(packages)) {
-      if (entry.resolved === undefined) continue;
-      assert.ok(entry.resolved.startsWith('https://registry.npmjs.org/'), `${lockfile} ${name}: ${entry.resolved}`);
+      assert.ok(!entry.resolved || entry.resolved.startsWith('https://registry.npmjs.org/'), `${lockfile} ${name}: ${entry.resolved}`);
     }
   }
 });
