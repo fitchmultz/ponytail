@@ -3,11 +3,12 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { buildInstructions } from "../instructions.js";
 
 test("stdio server serves the prompt and tool to an MCP client", async (t) => {
-  const child = spawn(process.execPath, [new URL("../index.js", import.meta.url).pathname], {
+  const child = spawn(process.execPath, [fileURLToPath(new URL("../index.js", import.meta.url))], {
     env: { ...process.env, PONYTAIL_DEFAULT_MODE: "full" },
     stdio: ["pipe", "pipe", "inherit"],
   });
