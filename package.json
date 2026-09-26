@@ -35,7 +35,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test tests/*.test.js && npm test --prefix pi-extension && npm test --prefix ponytail-mcp && node --test benchmarks/pi/run.test.mjs"
+    "test": "node --test tests/*.test.js && npm test --prefix pi-extension && npm test --prefix ponytail-mcp && node --test benchmarks/pi/run.test.mjs",
+    "check:compat": "npm test --prefix pi-extension"
   },
   "pi": {
     "extensions": ["./pi-extension/index.js"],
