@@ -69,3 +69,9 @@ suite, point `PI_PACKAGE_DIR` at its installed package:
 PI_PACKAGE_DIR="$(realpath "$(npm root -g)/@earendil-works/pi-coding-agent")" \
   node --test pi-extension/test/native.test.js
 ```
+
+CI qualifies every PR on the official release in `devDependencies` and on the
+fork commit pinned by the shared `fitchmultz/.github` fleet automation: the
+contract suite (`npm run check:compat`), a fresh Git install, and the real Pi
+CLI loading the package. The fleet's daily canary repeats this against the
+latest official release and the maintained fork.
