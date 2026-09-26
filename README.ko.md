@@ -120,7 +120,7 @@ Copilot CLI는 플러그인 명령에 그 이름을 네임스페이스로 붙인
 Pi 0.87.0 이상이 필요하다.
 
 ```bash
-pi install git:github.com/fitchmultz/ponytail@v5.0.0
+pi install git:github.com/fitchmultz/ponytail@v6.0.0
 ```
 
 Ponytail 패키지는 하나만 설정하고, 기존 스킬 필터를 새 항목에 유지한다. 설치 후 Pi를 다시 로드한다.
@@ -251,7 +251,7 @@ Codex 확장을 쓰는 VS Code는 이 저장소가 함께 싣는 `AGENTS.md`를 
 
 ```bash
 npm ci --ignore-scripts
-npm install --prefix ponytail-mcp --ignore-scripts
+npm ci --prefix ponytail-mcp --ignore-scripts
 node scripts/build-openclaw-skills.js
 node scripts/check-rule-copies.js
 node scripts/check-versions.js

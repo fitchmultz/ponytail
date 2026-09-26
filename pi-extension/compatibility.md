@@ -1,6 +1,6 @@
 # Pi runtime contract
 
-Ponytail uses the native APIs shared by official Pi 0.87.0 and the supported Pi
+Ponytail uses the native APIs shared by official Pi 0.87.1 and the supported Pi
 fork. It does not change model selection, reasoning effort, context size, tools,
 permissions, provider transport, or compaction policy.
 
@@ -18,8 +18,10 @@ Existing persisted review mode remains readable; `/ponytail review` is not a
 runtime control.
 
 The extension adds one named `ponytail` prompt section. Each request projects
-only that section onto the first system message and removes historical Ponytail
-section patches. Mode changes during work apply at the next provider request
+only that section onto the head system message and removes historical Ponytail
+section patches. The head is the first system message, or the latest one marked
+`replace`: the fork emits such a message when it restarts an opaque saved
+prompt, and it discards every earlier section. Mode changes during work apply at the next provider request
 without interrupting the task or making an extra request. A mode change
 invalidates the prefix once; subsequent unchanged requests keep their complete
 previous message prefix, including across the next ordinary turn. The projection
@@ -60,9 +62,10 @@ After installing the root development dependencies, run
 root SDK rather than an inherited host override. The native tests use Pi's
 resource loader, session runtime, package filters, and deterministic faux
 provider. They make no live model calls.
-To exercise another installed host with the same contract suite:
+To exercise another installed host, such as the fork, with the same contract
+suite, point `PI_PACKAGE_DIR` at its installed package:
 
 ```sh
-PI_PACKAGE_DIR=/path/to/@earendil-works/pi-coding-agent \
+PI_PACKAGE_DIR="$(realpath "$(npm root -g)/@earendil-works/pi-coding-agent")" \
   node --test pi-extension/test/native.test.js
 ```

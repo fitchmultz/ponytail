@@ -130,7 +130,7 @@ Copilot CLI namespaces plugin commands by plugin name. For example:
 Requires Pi **0.87.0 or newer**; validated against official 0.87.0–0.87.1 and the installed 0.87.0 fork. Earlier releases are unsupported.
 
 ```bash
-pi install git:github.com/fitchmultz/ponytail@v5.0.0
+pi install git:github.com/fitchmultz/ponytail@v6.0.0
 ```
 
 Keep one Ponytail package configured. When switching from upstream, remove its package entry and preserve any per-skill filters on the new entry. Reload Pi after installation.

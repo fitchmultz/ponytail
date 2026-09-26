@@ -4,8 +4,8 @@
 // It does NOT replace the always-on adapters; it's the clean option for hosts
 // whose only injection point is the prompt menu (see #70).
 import fs from "node:fs";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { McpServer } from "@modelcontextprotocol/server";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 
 import { MODES, buildInstructions, resolveMode } from "./instructions.js";
@@ -15,17 +15,20 @@ const { version } = JSON.parse(
 );
 const server = new McpServer({ name: "ponytail", version });
 
-const modeArg = z
-  .enum(MODES)
-  .optional()
-  .describe("Ponytail intensity: lite, full, or ultra. Omit for the configured default.");
+const modeArgs = z.object({
+  mode: z
+    .enum(MODES)
+    .optional()
+    .describe("Ponytail intensity: lite, full, or ultra. Omit for the configured default."),
+});
 
 server.registerPrompt(
   "ponytail",
   {
     title: "Ponytail mode",
     description: "Lazy senior dev instructions: YAGNI, stdlib first, the smallest correct change.",
-    argsSchema: { mode: modeArg },
+    // Clients may omit `arguments` entirely when every argument is optional.
+    argsSchema: modeArgs.default({}),
   },
   ({ mode }) => ({
     messages: [{ role: "user", content: { type: "text", text: buildInstructions(mode) } }],
@@ -37,8 +40,8 @@ server.registerTool(
   {
     title: "Ponytail instructions",
     description: "Return the Ponytail ruleset for the given intensity (lite, full, or ultra).",
-    inputSchema: { mode: modeArg },
-    outputSchema: { mode: z.string(), instructions: z.string() },
+    inputSchema: modeArgs,
+    outputSchema: z.object({ mode: z.string(), instructions: z.string() }),
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   ({ mode }) => {
