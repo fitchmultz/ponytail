@@ -116,7 +116,7 @@ Copilot CLI agrupa los comandos del plugin bajo el nombre del plugin. Por ejempl
 Requiere Pi 0.87.0 o posterior.
 
 ```bash
-pi install git:github.com/fitchmultz/ponytail@v5.0.0
+pi install git:github.com/fitchmultz/ponytail@v6.0.0
 ```
 
 Mantén una sola instalación de Ponytail y conserva tus filtros de skills al cambiar de paquete. Recarga Pi después de instalar.
@@ -231,7 +231,7 @@ Edita `hooks/ponytail-core.md` y `hooks/ponytail-modes.json`; genera las copias 
 
 ```bash
 npm ci --ignore-scripts
-npm install --prefix ponytail-mcp --ignore-scripts
+npm ci --prefix ponytail-mcp --ignore-scripts
 node scripts/build-openclaw-skills.js
 node scripts/check-rule-copies.js
 node scripts/check-versions.js

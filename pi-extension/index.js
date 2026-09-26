@@ -175,10 +175,12 @@ export default function ponytailExtension(pi) {
     const corePrompt = core && formatSkillsForPrompt([{ name: "ponytail", description: core.description, filePath: core.sourceInfo.path }]).trim();
     // Match only our exact native-rendered entry, never rebuild another extension's skills.
     const coreEntry = corePrompt?.slice(corePrompt.indexOf("  <skill>"), corePrompt.lastIndexOf("</available_skills>"));
+    // A system message marked `replace` discards every earlier prompt section, so it becomes the head.
+    const head = Math.max(0, event.messages.findLastIndex(message => message.role === "system" && message.replace));
     let changed = false;
     const messages = event.messages.flatMap((message, index) => {
       if (message.role !== "system") return [message];
-      const ponytail = index === 0 ? desired : undefined;
+      const ponytail = index === head ? desired : undefined;
       const skills = message.sections?.skills;
       const filteredSkills = coreEntry && typeof skills === "string" ? skills.replace(coreEntry, "") : skills;
       if (message.sections?.ponytail === ponytail && skills === filteredSkills) return [message];
@@ -192,7 +194,7 @@ export default function ponytailExtension(pi) {
           Object.keys(message).every(key => ["role", "content", "sections", "timestamp"].includes(key))) return [];
       return [{ ...message, sections }];
     });
-    if (desired && messages[0]?.role !== "system") {
+    if (desired && event.messages[head]?.role !== "system") {
       messages.unshift({ role: "system", content: "", sections: { ponytail: desired }, timestamp: 0 });
       changed = true;
     }

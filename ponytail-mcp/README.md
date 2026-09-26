@@ -25,7 +25,7 @@ and `~/.config/ponytail/config.json` work the same as everywhere else.
 
 ```bash
 cd ponytail-mcp
-npm install
+npm ci --ignore-scripts
 node index.js        # speaks MCP over stdio
 ```
 
@@ -41,6 +41,5 @@ Point an MCP host at that command. Example client entry:
 npm test
 ```
 
-Covers mode resolution and the instruction text. The MCP wiring in `index.js`
-is intentionally thin: it just maps the prompt and tool onto
-`buildInstructions`.
+Covers mode resolution, the instruction text, and the stdio wiring: a raw
+JSON-RPC client lists and calls the prompt and tool, with and without `mode`.

@@ -1,6 +1,6 @@
 # Native Pi / Astra evaluation
 
-A small paired evaluation of complete repository tasks. Node.js 22.19+ and Git are
+A small paired evaluation of complete repository tasks. Node.js 24.15+ and Git are
 required on macOS/Linux, along with an already installed Pi CLI and working Astra
 authentication. There is no provider wrapper, custom tool loop or runtime dependency.
 
