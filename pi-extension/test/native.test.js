@@ -180,6 +180,19 @@ test("native resumed independent namesake skill remains in wakeup metadata", { t
   assert.equal(section(h.requests[0]), body("full"));
 });
 
+test("native resumed opaque saved prompt keeps the policy when the host replaces it", { timeout: 15000 }, async t => {
+  const standalone = await open(t, { extension: false });
+  await standalone.prompt("BEFORE OPAQUE PROMPT");
+  standalone.session.sessionManager.appendMessage({ role: "system", content: "LEGACY OPAQUE PROMPT", timestamp: Date.now() });
+  const h = await open(t, { sessionFile: standalone.session.sessionFile });
+  await h.prompt("AFTER OPAQUE PROMPT");
+  await h.prompt("NEXT TURN");
+  for (const request of h.requests) {
+    assert.equal(section(request), body("full"));
+    preserved(request);
+  }
+});
+
 test("native independently authored ponytail skill stays discoverable", { timeout: 15000 }, async t => {
   const h = await open(t, { userSkill: true });
   await h.prompt();
