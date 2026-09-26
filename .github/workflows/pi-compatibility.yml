@@ -15,7 +15,7 @@ concurrency:
 
 env:
   # The fitchmultz/.github commit that added ponytail to fleet.json; v1.0.0 predates it.
-  PI_AUTOMATION_REF: 75a125a7e1748664909abf6bc33037411e959028
+  PI_AUTOMATION_REF: 529e16e073564bbde894ef756e1d75b302ed9834
 
 jobs:
   compatibility:
