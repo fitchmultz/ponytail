@@ -77,7 +77,11 @@ PI_PACKAGE_DIR="$(realpath "$(npm root -g)/@earendil-works/pi-coding-agent")" \
 ```
 
 CI qualifies every PR on the official release in `devDependencies` and on the
-fork commit pinned by the shared `fitchmultz/.github` fleet automation: the
-contract suite (`npm run check:compat`), a fresh Git install, and the real Pi
-CLI loading the package. The fleet's daily canary repeats this against the
-latest official release and the maintained fork.
+maintained fork's current `main`: the contract suite (`npm run check:compat`),
+a fresh Git install, and the real Pi CLI loading the package. The fork checkout's
+exact commit is used for both packaging and qualification evidence; no stale
+fork revision is pinned in the workflow. Older forks that only accept context
+edits in fresh-window hooks are not supported.
+
+The shared `fitchmultz/.github` fleet's daily canary repeats qualification against
+the latest official release and the maintained fork.

@@ -5,6 +5,7 @@
 ### Pi
 
 - Preserve earlier request prefixes when changing Ponytail modes, including turning it off during a tool loop. Mode updates remain ordered through resume, compaction, and fresh context windows without starting extra model calls.
+- Qualify PRs against the maintained Pi fork's current `main`, recording the exact tested commit instead of retaining a stale fork pin.
 
 ## 6.0.0
 
