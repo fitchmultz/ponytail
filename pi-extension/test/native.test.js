@@ -15,6 +15,7 @@ after(() => rmSync(scratch, { recursive: true, force: true }));
 const sdk = await import(pathToFileURL(join(packageRoot, "dist/index.js")));
 const aiPath = [join(packageRoot, "node_modules/@earendil-works/pi-ai/dist/index.js"), join(dirname(packageRoot), "pi-ai/dist/index.js")].find(existsSync);
 const ai = await import(pathToFileURL(aiPath));
+const { openaiCodexProvider } = await import(pathToFileURL(join(dirname(aiPath), "providers/openai-codex.js")));
 globalThis.fetch = async () => { throw new Error("Network forbidden in Ponytail contract tests"); };
 const text = message => typeof message.content === "string" ? message.content : message.content.filter(part => part.type === "text").map(part => part.text).join("\n");
 const { getPonytailInstructions } = createRequire(import.meta.url)("../../hooks/ponytail-instructions.js");
@@ -134,25 +135,46 @@ test("native unchanged loops retain one policy copy and every previous request m
   assert.equal(h.api.getCommands().filter(c => c.name === "skill:ponytail").length, 1);
 });
 
-test("native changed mode keeps the complete prefix through unchanged tools and the next ordinary turn", { timeout: 15000 }, async t => {
-  const h = await open(t);
+for (const mode of ["lite", "off"]) test(`native ultra to ${mode} preserves request and Codex payload prefixes through the next ordinary turn`, { timeout: 15000 }, async t => {
+  const h = await open(t, { defaultMode: "ultra" });
   const one = h.gate(), two = h.gate();
   h.responses([h.tool(0), h.tool(1), done()]);
   const running = h.session.prompt("CHANGE THEN STEADY");
   await one.entered.promise;
-  await h.mode("lite");
+  await h.mode(mode);
   one.release.resolve();
   await two.entered.promise;
   two.release.resolve();
   await running;
   await h.prompt("NEXT ORDINARY TURN");
-  assert.deepEqual(h.requests.map(section), [body("full"), body("lite"), body("lite"), body("lite")]);
+  const selected = mode === "off" ? undefined : body(mode);
+  assert.deepEqual(h.requests.map(section), [body("ultra"), selected, selected, selected]);
   h.requests.forEach(preserved);
-  for (let index = 2; index < h.requests.length; index++) {
+  for (let index = 1; index < h.requests.length; index++) {
     const previous = h.requests[index - 1].messages;
     assert.deepEqual(h.requests[index].messages.slice(0, previous.length), previous);
   }
-  for (const request of h.requests) assert.equal(request.messages.filter(m => m.sections?.ponytail).length, 1);
+  assert.deepEqual(h.requests.map(r => r.messages.filter(m => m.sections?.ponytail !== undefined).length), [1, 2, 2, 2]);
+  const provider = openaiCodexProvider();
+  const model = provider.getModels().find(m => m.id === "gpt-6-astra");
+  assert.ok(model);
+  const apiKey = `x.${Buffer.from(JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: "local-test" } })).toString("base64url")}.x`;
+  let previous;
+  for (const request of h.requests) {
+    let payload;
+    const result = await provider.streamSimple(model, { messages: request.messages }, {
+      apiKey, transport: "sse", reasoning: "max",
+      onPayload(value) { payload = value; throw new Error("LOCAL_PAYLOAD_CAPTURE"); },
+    }).result();
+    assert.match(result.errorMessage, /LOCAL_PAYLOAD_CAPTURE/);
+    assert.ok(payload);
+    if (previous) {
+      assert.equal(payload.instructions, previous.instructions);
+      assert.deepEqual(payload.tools, previous.tools);
+      assert.deepEqual(payload.input.slice(0, previous.input.length), previous.input);
+    }
+    previous = payload;
+  }
 });
 
 test("native resumed standalone wakeup hides only packaged core metadata and retains per-run changes", { timeout: 15000 }, async t => {
@@ -218,6 +240,10 @@ test("native active controls apply next request and alias follows tools without 
   assert.equal(h.starts.length, 1);
   assert.deepEqual(h.requests.map(section), [body("full"), undefined, body("lite"), body("lite")]);
   h.requests.forEach(preserved);
+  for (let index = 1; index < h.requests.length; index++) {
+    const previous = h.requests[index - 1].messages;
+    assert.deepEqual(h.requests[index].messages.slice(0, previous.length), previous);
+  }
   assert.ok(h.requests.every(r => !r.messages.some(m => m.role === "user" && text(m) === "normal mode")));
   const aliasInputs = h.requests.map(r => r.messages.filter(m => m.role === "user").map(text).filter(s => s.startsWith('<skill name="ponytail-review"')));
   assert.deepEqual(aliasInputs.slice(0, 3), [[], [], []]);
@@ -265,6 +291,57 @@ test("native tree, fork, clone, new, compaction and file resume retain branch-lo
   const reopened = await open(t, { sessionFile: file, defaultMode: "off" });
   await reopened.prompt("AFTER RESTART");
   assert.equal(section(reopened.requests.at(-1)), body("lite"));
+});
+
+test("native fresh windows retain an active mode change without waking another request", { timeout: 15000 }, async t => {
+  const h = await open(t, { defaultMode: "ultra" });
+  if (typeof h.session.newContext !== "function") return t.skip("Fresh context windows are fork-only");
+  const gate = h.gate();
+  h.responses([h.tool(0), done()]);
+  const running = h.session.prompt("CHANGE AND RESET");
+  await gate.entered.promise;
+  await h.mode("off");
+  h.session.newContext({ handoff: "Continue the task." });
+  gate.release.resolve();
+  await running;
+  assert.deepEqual(h.requests.map(section), [body("ultra"), undefined]);
+  h.requests.forEach(preserved);
+  await h.prompt("NEXT TURN");
+  assert.equal(section(h.requests.at(-1)), undefined);
+});
+
+for (const retain of [false, true]) test(`native active compaction checkpoints mode with retained receipts=${retain}`, { timeout: 15000 }, async t => {
+  const h = await open(t, { defaultMode: "ultra" });
+  const gate = h.gate();
+  let compacted = false;
+  h.api.on("context", event => ({
+    messages: [{ role: "custom", customType: "companion", content: "COMPANION CONTEXT", display: false, timestamp: 0 }, ...event.messages],
+  }));
+  h.api.on("turn_end", (event, ctx) => {
+    if (compacted || event.message.stopReason !== "toolUse") return;
+    compacted = true;
+    assert.equal(h.session.isStreaming, true);
+    return {
+      entries: [{
+        type: "compaction", summary: "Continue the task after its tool result.",
+        firstKeptEntryId: retain ? ctx.sessionManager.getBranch().find(e => e.type === "custom_message").id : null,
+      }],
+    };
+  });
+  h.responses([h.tool(0), done()]);
+  const running = h.session.prompt("CHANGE AND COMPACT");
+  await gate.entered.promise;
+  await h.mode("off");
+  gate.release.resolve();
+  await running;
+  assert.equal(compacted, true);
+  assert.deepEqual(h.requests.map(section), [body("ultra"), undefined]);
+  h.requests.forEach(preserved);
+  const previous = h.requests.at(-1).messages;
+  assert.ok(previous.some(m => m.role === "user" && text(m).includes("COMPANION CONTEXT")));
+  await h.prompt("NEXT ORDINARY TURN");
+  assert.equal(section(h.requests.at(-1)), undefined);
+  assert.deepEqual(h.requests.at(-1).messages.slice(0, previous.length), previous);
 });
 
 test("native sessions pin an inherited default before the first assistant journal write", { timeout: 15000 }, async t => {

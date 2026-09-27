@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -22,6 +23,7 @@ export const readQuietStartup = getQuietStartup;
 const RUNTIME_MODE_LIST = RUNTIME_MODES.join("|");
 const PONYTAIL_COMMAND_DESCRIPTION = `Set mode: ${RUNTIME_MODE_LIST}. Commands: status, default <mode>`;
 const coreSkillPath = realpathSync(fileURLToPath(new URL("../skills/ponytail/SKILL.md", import.meta.url)));
+const MODE_UPDATE = "ponytail-mode-update";
 
 export function resolveSessionMode(entries, fallbackMode = DEFAULT_MODE) {
   const fallback = fallbackMode === null ? null : normalizePersistedMode(fallbackMode) || DEFAULT_MODE;
@@ -77,10 +79,25 @@ export default function ponytailExtension(pi) {
     }
   }
 
+  function modeUpdate() {
+    return {
+      customType: MODE_UPDATE,
+      content: currentMode === "off" ? "" : `<ponytail>\n${getPonytailInstructions(currentMode)}\n</ponytail>`,
+      display: false,
+      details: { id: randomUUID() },
+    };
+  }
+
+  function sendModeUpdate() {
+    // Persist after pending tool results, without waking or extending the agent run.
+    pi.sendMessage(modeUpdate(), { triggerTurn: false });
+  }
+
   function setMode(mode, ctx) {
     if (mode !== currentMode) {
       currentMode = mode;
       pi.appendEntry("ponytail-mode", { mode });
+      sendModeUpdate();
     }
     syncStatus(ctx);
     notify(ctx, `Ponytail mode set to ${mode}.`);
@@ -92,6 +109,7 @@ export default function ponytailExtension(pi) {
     const savedMode = resolveSessionMode(ctx.sessionManager.getBranch(), null);
     currentMode = savedMode ?? configuredDefaultMode;
     if (savedMode === null) pi.appendEntry("ponytail-mode", { mode: currentMode });
+    sendModeUpdate();
     syncStatus(ctx);
   }
 
@@ -159,6 +177,7 @@ export default function ponytailExtension(pi) {
     if (!getQuietStartup()) notify(ctx, `Ponytail loaded: ${currentMode}`);
   });
   pi.on("session_tree", hydrate);
+  pi.registerContextWindowHook?.(() => [{ type: "custom_message", ...modeUpdate() }]);
 
   pi.on("before_agent_start", event => {
     const options = event.systemPromptOptions;
@@ -169,36 +188,58 @@ export default function ponytailExtension(pi) {
     if (skill) skill.disableModelInvocation = true;
   });
 
-  pi.on("context_with_system", event => {
-    const desired = currentMode === "off" ? undefined : `<ponytail>\n${getPonytailInstructions(currentMode)}\n</ponytail>`;
+  pi.on("context_with_system", (event, ctx) => {
+    const boundary = ctx.sessionManager.buildSessionProjection().entries[0]?.sourceEntry;
+    const beforeCompaction = boundary?.type === "compaction" ? ctx.sessionManager.getBranch(boundary.id) : [];
+    const checkpointMode = resolveSessionMode(beforeCompaction, null);
+    const compactedReceipts = new Set(beforeCompaction
+      .filter(entry => entry.type === "custom_message" && entry.customType === MODE_UPDATE)
+      .map(entry => entry.details?.id));
+    let input = event.messages;
+    if (checkpointMode !== null) {
+      // Compaction discards receipts, not selected mode. Supersede retained old receipts
+      // without relying on message offsets that another context hook may have changed.
+      const checkpoint = {
+        role: "custom", customType: MODE_UPDATE, timestamp: Date.parse(boundary.timestamp),
+        content: checkpointMode === "off" ? "" : `<ponytail>\n${getPonytailInstructions(checkpointMode)}\n</ponytail>`,
+      };
+      const start = input[0]?.role === "system" ? 1 : 0;
+      input = [...input.slice(0, start), checkpoint, ...input.slice(start)];
+    }
     const core = pi.getCommands().find(command => command.source === "skill" && command.name === "skill:ponytail" && realpathSync(command.sourceInfo.path) === coreSkillPath);
     const corePrompt = core && formatSkillsForPrompt([{ name: "ponytail", description: core.description, filePath: core.sourceInfo.path }]).trim();
     // Match only our exact native-rendered entry, never rebuild another extension's skills.
     const coreEntry = corePrompt?.slice(corePrompt.indexOf("  <skill>"), corePrompt.lastIndexOf("</available_skills>"));
-    // A system message marked `replace` discards every earlier prompt section, so it becomes the head.
-    const head = Math.max(0, event.messages.findLastIndex(message => message.role === "system" && message.replace));
     let changed = false;
-    const messages = event.messages.flatMap((message, index) => {
+    let policy;
+    const messages = input.flatMap((message, index) => {
+      if (message.role === "custom" && message.customType === MODE_UPDATE) {
+        changed = true;
+        if (message.details?.id && compactedReceipts.has(message.details.id)) return [];
+        const next = message.content || undefined;
+        if (next === policy) return [];
+        policy = next;
+        return [{ role: "system", content: "", sections: { ponytail: next ?? null }, timestamp: message.timestamp }];
+      }
       if (message.role !== "system") return [message];
-      const ponytail = index === head ? desired : undefined;
+      if (message.replace) policy = undefined;
+      const ponytail = message.sections?.ponytail;
+      // Receipts own ordinary mode history. Keep a host replacement's section:
+      // a replacement discards earlier receipts as well as earlier system sections.
+      const removePolicy = ponytail !== undefined && !message.replace;
+      if (message.replace && ponytail !== undefined) policy = ponytail ?? undefined;
       const skills = message.sections?.skills;
       const filteredSkills = coreEntry && typeof skills === "string" ? skills.replace(coreEntry, "") : skills;
-      if (message.sections?.ponytail === ponytail && skills === filteredSkills) return [message];
+      if (!removePolicy && skills === filteredSkills) return [message];
       changed = true;
       const sections = { ...message.sections };
-      if (ponytail) sections.ponytail = ponytail;
-      else delete sections.ponytail;
+      if (removePolicy) delete sections.ponytail;
       if (skills !== filteredSkills) sections.skills = filteredSkills;
-      // Drop only exhausted Ponytail-only patches; retain every unrelated field and delta.
+      // Drop only owned patches; retain every unrelated field and delta.
       if (index > 0 && message.content === "" && Object.keys(sections).length === 0 &&
           Object.keys(message).every(key => ["role", "content", "sections", "timestamp"].includes(key))) return [];
       return [{ ...message, sections }];
     });
-    if (desired && event.messages[head]?.role !== "system") {
-      messages.unshift({ role: "system", content: "", sections: { ponytail: desired }, timestamp: 0 });
-      changed = true;
-    }
-    // Only the owned section is projected at the stable head. Native forced prompts still win.
     if (changed) return { messages };
   });
 }

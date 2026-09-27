@@ -17,15 +17,20 @@ Pi controls journal durability, including its deferred first-assistant write.
 Existing persisted review mode remains readable; `/ponytail review` is not a
 runtime control.
 
-The extension adds one named `ponytail` prompt section. Each request projects
-only that section onto the head system message and removes historical Ponytail
-section patches. The head is the first system message, or the latest one marked
-`replace`: the fork emits such a message when it restarts an opaque saved
-prompt, and it discards every earlier section. Mode changes during work apply at the next provider request
-without interrupting the task or making an extra request. A mode change
-invalidates the prefix once; subsequent unchanged requests keep their complete
-previous message prefix, including across the next ordinary turn. The projection
-does not rewrite the session journal.
+The extension owns one named `ponytail` prompt section. Mode changes append hidden
+session messages without waking the model. Each request projects those messages
+as native section updates, including a removal when switching off. Earlier
+request messages stay unchanged through mode changes, tool-loop continuations,
+and the next ordinary turn. Redundant updates are omitted from model context.
+Mode changes during work apply at the next provider request without interrupting
+the task or making an extra request. Earlier journal entries are never rewritten.
+
+Compaction establishes a fixed mode checkpoint from that branch's state at the
+boundary. Retained older mode messages cannot override it; subsequent changes
+still apply in order. Fork fresh-context windows also retain the selected mode.
+A native prompt marked `replace` retains its Ponytail section because it discards
+earlier section updates. Cache reuse remains provider-dependent: compaction,
+fresh windows, and complete prompt replacements can change the shared prefix.
 Standalone `stop ponytail` and `normal mode` are handled locally; ordinary
 mentions of those phrases pass through.
 
@@ -61,7 +66,8 @@ After installing the root development dependencies, run
 `env -u PI_PACKAGE_DIR npm test --prefix pi-extension` to select the official
 root SDK rather than an inherited host override. The native tests use Pi's
 resource loader, session runtime, package filters, and deterministic faux
-provider. They make no live model calls.
+provider. Codex prefix checks capture the real adapter's request payload and stop
+before networking. They make no live model calls.
 To exercise another installed host, such as the fork, with the same contract
 suite, point `PI_PACKAGE_DIR` at its installed package:
 
@@ -71,7 +77,11 @@ PI_PACKAGE_DIR="$(realpath "$(npm root -g)/@earendil-works/pi-coding-agent")" \
 ```
 
 CI qualifies every PR on the official release in `devDependencies` and on the
-fork commit pinned by the shared `fitchmultz/.github` fleet automation: the
-contract suite (`npm run check:compat`), a fresh Git install, and the real Pi
-CLI loading the package. The fleet's daily canary repeats this against the
-latest official release and the maintained fork.
+maintained fork's current `main`: the contract suite (`npm run check:compat`),
+a fresh Git install, and the real Pi CLI loading the package. The fork checkout's
+exact commit is used for both packaging and qualification evidence; no stale
+fork revision is pinned in the workflow. Older forks that only accept context
+edits in fresh-window hooks are not supported.
+
+The shared `fitchmultz/.github` fleet's daily canary repeats qualification against
+the latest official release and the maintained fork.
