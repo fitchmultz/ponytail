@@ -25,15 +25,17 @@ function harness(t, entries = []) {
   }
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const events = new Map(), commands = new Map();
-  const sent = [], notices = [], statuses = [];
+  const sent = [], notices = [], statuses = [], updates = [];
   let branch = [...entries];
+  let projection = { entries: [] };
   const skills = aliases.map(name => ({ name: `skill:${name}`, source: "skill" }));
   const ctx = {
     hasUI: true,
     mode: "rpc",
     isIdle: () => true,
     sessionManager: {
-      getBranch: () => branch,
+      getBranch: id => id === undefined ? branch : branch.slice(0, branch.findIndex(entry => entry.id === id) + 1),
+      buildSessionProjection: () => projection,
       getEntries: () => { throw new Error("Read the active branch, not the whole journal"); },
     },
     ui: {
@@ -46,6 +48,10 @@ function harness(t, entries = []) {
     on: (name, fn) => events.set(name, fn),
     registerCommand: (name, options) => commands.set(name, options),
     appendEntry: (customType, data) => branch.push({ type: "custom", customType, data }),
+    sendMessage: (message, options) => {
+      assert.deepEqual(options, { triggerTurn: false });
+      updates.push(message);
+    },
     sendUserMessage: (text, options) => sent.push({ text, options }),
     getCommands: () => skills,
   });
@@ -53,8 +59,10 @@ function harness(t, entries = []) {
     events, commands, sent, notices, statuses, ctx, skills,
     get branch() { return branch; },
     set branch(value) { branch = value; },
+    set projection(value) { projection = value; },
     emit: (name, event = {}) => events.get(name)(event, ctx),
     command: args => commands.get("ponytail").handler(args, ctx),
+    update: timestamp => ({ role: "custom", ...updates.at(-1), timestamp }),
     before() {
       const event = { systemPrompt: "CUSTOM", systemPromptOptions: { sections: { companion: "OTHER" }, skills: [] } };
       const result = events.get("before_agent_start")(event, ctx);
@@ -90,50 +98,51 @@ test("initial section is unwrapped and only the per-run base-skill descriptor is
   assert.equal(options.skills[0].disableModelInvocation, true);
 });
 
-test("request projection changes only the owned section at the stable head", async t => {
+test("mode receipts append section updates without changing earlier request messages", async t => {
   const h = harness(t);
   await h.emit("session_start");
   const messages = [
     { role: "system", content: "CUSTOM", sections: { ponytail: section("full"), companion: "OTHER" }, tools: [], timestamp: 1 },
-    { role: "user", content: "TASK", timestamp: 2 },
+    h.update(2),
+    { role: "user", content: "TASK", timestamp: 3 },
   ];
   const original = structuredClone(messages);
-  assert.equal(await h.emit("context_with_system", { messages }), undefined);
+  const baseline = (await h.emit("context_with_system", { messages })).messages;
+  assert.equal(getCurrentSystemMessage(baseline).sections.ponytail, section("full"));
   await h.command("lite");
-  const patched = await h.emit("context_with_system", { messages });
-  assert.equal(patched.messages.length, messages.length);
-  assert.deepEqual(patched.messages[0], { ...messages[0], sections: { ...messages[0].sections, ponytail: section("lite") } });
-  assert.equal(patched.messages[1], messages[1]);
+  const changed = [...messages, h.update(4)];
+  const patched = await h.emit("context_with_system", { messages: changed });
+  assert.deepEqual(patched.messages.slice(0, baseline.length), baseline);
+  assert.equal(getCurrentSystemMessage(patched.messages).sections.ponytail, section("lite"));
   assert.equal(getCurrentSystemMessage(patched.messages).sections.companion, "OTHER");
-  assert.equal(await h.emit("context_with_system", { messages: patched.messages }), undefined);
   await h.command("off");
-  const removed = await h.emit("context_with_system", { messages: patched.messages });
-  assert.deepEqual(removed.messages[0].sections, { companion: "OTHER" });
+  const removed = await h.emit("context_with_system", { messages: [...changed, h.update(5)] });
+  assert.deepEqual(removed.messages.slice(0, patched.messages.length), patched.messages);
+  assert.deepEqual(removed.messages.at(-1).sections, { ponytail: null });
   assert.equal(getCurrentSystemMessage(removed.messages).sections.ponytail, undefined);
-  assert.equal(await h.emit("context_with_system", { messages: removed.messages }), undefined);
   assert.deepEqual(messages, original);
 });
 
-test("request projection strips historical owned patches while preserving other sections, tools and fields", async t => {
+test("receipts own mode history while unrelated native sections and tool changes survive", async t => {
   const h = harness(t);
   await h.emit("session_start");
   await h.command("lite");
   const messages = [
     { role: "system", content: "CUSTOM", sections: { ponytail: section("full"), companion: "OLD" }, timestamp: 1 },
     { role: "user", content: "TASK", timestamp: 2 },
-    { role: "system", content: "", sections: { ponytail: section("ultra") }, timestamp: 3 },
+    { role: "system", content: "", sections: { ponytail: section("full") }, timestamp: 3 },
     { role: "system", content: "ADDITIONAL", sections: { ponytail: null, companion: "NEW" }, toolsAdded: [{ name: "other" }], toolsRemoved: [{ name: "read" }], timestamp: 4, extra: "KEPT" },
+    h.update(5),
   ];
   const original = structuredClone(messages);
   const result = await h.emit("context_with_system", { messages });
-  assert.equal(result.messages.length, 3);
-  assert.equal(result.messages[0].sections.ponytail, section("lite"));
+  assert.equal(result.messages.length, 4);
+  assert.deepEqual(result.messages[0], { ...messages[0], sections: { companion: "OLD" } });
   assert.equal(result.messages[1], messages[1]);
   assert.deepEqual(result.messages[2], { ...messages[3], sections: { companion: "NEW" } });
   assert.equal(getCurrentSystemMessage(result.messages).sections.ponytail, section("lite"));
   assert.equal(getCurrentSystemMessage(result.messages).sections.companion, "NEW");
   assert.deepEqual(messages, original);
-  assert.equal(await h.emit("context_with_system", { messages: result.messages }), undefined);
 });
 
 test("request metadata filtering removes only the exact packaged entry from native read and bash sections", async t => {
@@ -149,18 +158,18 @@ test("request metadata filtering removes only the exact packaged entry from nati
     const messages = [{ role: "system", content: "OPAQUE <name>ponytail</name>", sections: { ponytail: section("full"), skills, companion: "OTHER" }, timestamp: 1 }];
     const original = structuredClone(messages);
     const result = await h.emit("context_with_system", { messages });
-    assert.deepEqual(result.messages, [{ ...messages[0], sections: { ...messages[0].sections, skills: render([independent, other]) + "\nOTHER EXTENSION SUFFIX" } }]);
+    assert.deepEqual(result.messages, [{ ...messages[0], sections: { companion: "OTHER", skills: render([independent, other]) + "\nOTHER EXTENSION SUFFIX" } }]);
     assert.deepEqual(messages, original);
     assert.equal(await h.emit("context_with_system", { messages: result.messages }), undefined);
     const custom = [{ ...messages[0], sections: { skills: "CUSTOM SKILLS" } }];
-    assert.equal((await h.emit("context_with_system", { messages: custom })).messages[0].sections.skills, "CUSTOM SKILLS");
+    assert.equal(await h.emit("context_with_system", { messages: custom }), undefined);
   }
 });
 
-test("request hook installs policy even without before_agent_start", async t => {
+test("session hydration supplies a durable mode receipt for wakeups without before_agent_start", async t => {
   const h = harness(t, [modeEntry("lite")]);
   await h.emit("session_start");
-  const result = await h.emit("context_with_system", { messages: [{ role: "system", content: "CUSTOM", timestamp: 1 }] });
+  const result = await h.emit("context_with_system", { messages: [{ role: "system", content: "CUSTOM", timestamp: 1 }, h.update(2)] });
   assert.equal(result.messages.at(-1).sections.ponytail, section("lite"));
 });
 

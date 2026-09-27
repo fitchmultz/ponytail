@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Pi
+
+- Preserve earlier request prefixes when changing Ponytail modes, including turning it off during a tool loop. Mode updates remain ordered through resume, compaction, and fresh context windows without starting extra model calls.
+
 ## 6.0.0
 
 ### Runtime
