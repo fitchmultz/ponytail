@@ -123,6 +123,21 @@ test("mode receipts append section updates without changing earlier request mess
   assert.deepEqual(messages, original);
 });
 
+test("startup receipts follow opted-in native heads without rewriting legacy order", async t => {
+  const h = harness(t);
+  await h.emit("session_start");
+  for (const nativeHead of [undefined, true]) {
+    const head = { role: "system", content: "NATIVE", toolsAdded: [{ name: "read" }], sections: { ponytail: section("full") }, timestamp: 1, ...(nativeHead ? { nativeHead } : {}) };
+    const messages = [h.update(0), head, { role: "user", content: "TASK", timestamp: 2 }];
+    const original = structuredClone(messages);
+    const result = (await h.emit("context_with_system", { messages })).messages;
+    assert.equal(result[nativeHead ? 0 : 1].content, "NATIVE");
+    assert.deepEqual(result[nativeHead ? 0 : 1].toolsAdded, head.toolsAdded);
+    assert.equal(result[nativeHead ? 1 : 0].sections.ponytail, section("full"));
+    assert.deepEqual(messages, original);
+  }
+});
+
 test("receipts own mode history while unrelated native sections and tool changes survive", async t => {
   const h = harness(t);
   await h.emit("session_start");
