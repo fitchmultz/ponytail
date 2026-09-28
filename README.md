@@ -145,6 +145,8 @@ The status indicator shows mode only. `quietStartup` suppresses the startup noti
 
 The extension owns one named prompt section and leaves other sections and tools intact. A different extension that deliberately replaces the **entire** system prompt can override structured sections; that native precedence is preserved. `off` removes only Ponytail’s section, not independent repository `AGENTS.md` rules or earlier skill messages.
 
+On Pi forks with the native declaration anchor, Ponytail keeps its startup policy after the host's marked system/tool head. Unmarked, already-bound windows retain their existing order; the updated host adopts the anchor at their next fresh context window or compaction. Updating Ponytail alone does not repair the host's startup ordering or invalidate/rewrite old history.
+
 The core skill remains packaged for standalone use. With the extension active it is omitted from automatic skill selection; explicit `/skill:ponytail` still expands the standalone instructions and does **not** change persistent mode. Use `/ponytail` for persistent controls.
 
 ### OpenCode

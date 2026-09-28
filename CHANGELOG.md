@@ -6,6 +6,7 @@
 
 - Preserve earlier request prefixes when changing Ponytail modes, including turning it off during a tool loop. Mode updates remain ordered through resume, compaction, and fresh context windows without starting extra model calls.
 - Qualify PRs against the maintained Pi fork's current `main`, recording the exact tested commit instead of retaining a stale fork pin.
+- Keep the startup policy after the host's marked native system/tool declaration on Pi forks with the declaration anchor, so lazily activated tools stay cache-safe deferred additions instead of rewriting the top-level tool list. Already-bound windows keep their order.
 
 ## 6.0.0
 

@@ -196,6 +196,9 @@ export default function ponytailExtension(pi) {
       .filter(entry => entry.type === "custom_message" && entry.customType === MODE_UPDATE)
       .map(entry => entry.details?.id));
     let input = event.messages;
+    // Only unbound windows opt in. Never move an already-bound legacy declaration.
+    const head = input.findIndex(message => message.role === "system" && message.nativeHead);
+    if (head > 0) input = [input[head], ...input.slice(0, head), ...input.slice(head + 1)];
     if (checkpointMode !== null) {
       // Compaction discards receipts, not selected mode. Supersede retained old receipts
       // without relying on message offsets that another context hook may have changed.
@@ -210,7 +213,7 @@ export default function ponytailExtension(pi) {
     const corePrompt = core && formatSkillsForPrompt([{ name: "ponytail", description: core.description, filePath: core.sourceInfo.path }]).trim();
     // Match only our exact native-rendered entry, never rebuild another extension's skills.
     const coreEntry = corePrompt?.slice(corePrompt.indexOf("  <skill>"), corePrompt.lastIndexOf("</available_skills>"));
-    let changed = false;
+    let changed = input !== event.messages;
     let policy;
     const messages = input.flatMap((message, index) => {
       if (message.role === "custom" && message.customType === MODE_UPDATE) {
