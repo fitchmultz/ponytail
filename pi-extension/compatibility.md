@@ -1,7 +1,8 @@
 # Pi runtime contract
 
-Ponytail uses the native APIs shared by official Pi 0.87.1 and the supported Pi
-fork. It does not change model selection, reasoning effort, context size, tools,
+Ponytail uses the public APIs shared by official Pi 0.99.1 and the supported Pi
+fork. Pi 0.87.0 remains the declared minimum; this development baseline does not
+claim a new qualification of older hosts. It does not change model selection, reasoning effort, context size, tools,
 permissions, provider transport, or compaction policy.
 
 `/ponytail [off|lite|full|ultra]` controls persistent session mode. With no argument,
@@ -13,7 +14,7 @@ configuration is reported without replacing its contents.
 Mode is restored from the active branch on session start and tree navigation.
 An unmarked branch records its inherited default once. An old session's earlier
 unstored default cannot be recovered; the default at first load is recorded.
-Pi controls journal durability, including its deferred first-assistant write.
+Pi controls journal durability, including when the session file is first created.
 Existing persisted review mode remains readable; `/ponytail review` is not a
 runtime control.
 
@@ -27,10 +28,11 @@ the task or making an extra request. Earlier journal entries are never rewritten
 
 Compaction establishes a fixed mode checkpoint from that branch's state at the
 boundary. Retained older mode messages cannot override it; subsequent changes
-still apply in order. Fork fresh-context windows also retain the selected mode.
+still apply in order. Summary-free rollover uses the same public compaction
+boundary with no retained entries; no retired fork context-window API is needed.
 A native prompt marked `replace` retains its Ponytail section because it discards
 earlier section updates. Cache reuse remains provider-dependent: compaction,
-fresh windows, and complete prompt replacements can change the shared prefix.
+summary-free rollover, and complete prompt replacements can change the shared prefix.
 Standalone `stop ponytail` and `normal mode` are handled locally; ordinary
 mentions of those phrases pass through.
 
@@ -80,8 +82,8 @@ CI qualifies every PR on the official release in `devDependencies` and on the
 maintained fork's current `main`: the contract suite (`npm run check:compat`),
 a fresh Git install, and the real Pi CLI loading the package. The fork checkout's
 exact commit is used for both packaging and qualification evidence; no stale
-fork revision is pinned in the workflow. Older forks that only accept context
-edits in fresh-window hooks are not supported.
+fork revision is pinned in the workflow. The retained-entry and retain-none
+compaction cases both verify mode changes at the next public request boundary.
 
 The shared `fitchmultz/.github` fleet's daily canary repeats qualification against
 the latest official release and the maintained fork.

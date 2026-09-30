@@ -177,7 +177,6 @@ export default function ponytailExtension(pi) {
     if (!getQuietStartup()) notify(ctx, `Ponytail loaded: ${currentMode}`);
   });
   pi.on("session_tree", hydrate);
-  pi.registerContextWindowHook?.(() => [{ type: "custom_message", ...modeUpdate() }]);
 
   pi.on("before_agent_start", event => {
     const options = event.systemPromptOptions;

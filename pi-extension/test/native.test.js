@@ -293,23 +293,6 @@ test("native tree, fork, clone, new, compaction and file resume retain branch-lo
   assert.equal(section(reopened.requests.at(-1)), body("lite"));
 });
 
-test("native fresh windows retain an active mode change without waking another request", { timeout: 15000 }, async t => {
-  const h = await open(t, { defaultMode: "ultra" });
-  if (typeof h.session.newContext !== "function") return t.skip("Fresh context windows are fork-only");
-  const gate = h.gate();
-  h.responses([h.tool(0), done()]);
-  const running = h.session.prompt("CHANGE AND RESET");
-  await gate.entered.promise;
-  await h.mode("off");
-  h.session.newContext({ handoff: "Continue the task." });
-  gate.release.resolve();
-  await running;
-  assert.deepEqual(h.requests.map(section), [body("ultra"), undefined]);
-  h.requests.forEach(preserved);
-  await h.prompt("NEXT TURN");
-  assert.equal(section(h.requests.at(-1)), undefined);
-});
-
 for (const retain of [false, true]) test(`native active compaction checkpoints mode with retained receipts=${retain}`, { timeout: 15000 }, async t => {
   const h = await open(t, { defaultMode: "ultra" });
   const gate = h.gate();
@@ -323,7 +306,7 @@ for (const retain of [false, true]) test(`native active compaction checkpoints m
     assert.equal(h.session.isStreaming, true);
     return {
       entries: [{
-        type: "compaction", summary: "Continue the task after its tool result.",
+        type: "compaction", summary: retain ? "Continue the task after its tool result." : "",
         firstKeptEntryId: retain ? ctx.sessionManager.getBranch().find(e => e.type === "custom_message").id : null,
       }],
     };
