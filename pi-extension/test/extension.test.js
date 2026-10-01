@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { getCurrentSystemMessage } from "@earendil-works/pi-ai";
-import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
+import { formatSkillsForPrompt, SessionManager } from "@earendil-works/pi-coding-agent";
 
 import ponytailExtension from "../index.js";
 
@@ -15,7 +15,7 @@ const aliases = ["review", "audit", "gain", "debt", "help"].map(name => `ponytai
 const modeEntry = mode => ({ type: "custom", customType: "ponytail-mode", data: { mode } });
 const section = mode => `<ponytail>\n${getPonytailInstructions(mode)}\n</ponytail>`;
 
-function harness(t, entries = []) {
+function harness(t, entries = [], sessionManager) {
   const dir = mkdtempSync(join(tmpdir(), "ponytail-extension-"));
   const env = { XDG_CONFIG_HOME: dir, PONYTAIL_DEFAULT_MODE: "full", PONYTAIL_HIDE_STATUS: "0", PONYTAIL_QUIET_STARTUP: "0" };
   for (const [key, value] of Object.entries(env)) {
@@ -27,15 +27,18 @@ function harness(t, entries = []) {
   const events = new Map(), commands = new Map();
   const sent = [], notices = [], statuses = [], updates = [];
   let branch = [...entries];
-  let projection = { entries: [] };
   const skills = aliases.map(name => ({ name: `skill:${name}`, source: "skill" }));
   const ctx = {
     hasUI: true,
     mode: "rpc",
     isIdle: () => true,
-    sessionManager: {
+    sessionManager: sessionManager ?? {
       getBranch: id => id === undefined ? branch : branch.slice(0, branch.findIndex(entry => entry.id === id) + 1),
-      buildSessionProjection: () => projection,
+      getLeafId: () => branch.length ? branch.at(-1).id ?? `fixture-${branch.length}` : null,
+      getEntry: id => {
+        const index = branch.findIndex((entry, i) => (entry.id ?? `fixture-${i + 1}`) === id);
+        return index < 0 ? undefined : { ...branch[index], id, parentId: index > 0 ? branch[index - 1].id ?? `fixture-${index}` : null };
+      },
       getEntries: () => { throw new Error("Read the active branch, not the whole journal"); },
     },
     ui: {
@@ -47,7 +50,9 @@ function harness(t, entries = []) {
   ponytailExtension({
     on: (name, fn) => events.set(name, fn),
     registerCommand: (name, options) => commands.set(name, options),
-    appendEntry: (customType, data) => branch.push({ type: "custom", customType, data }),
+    appendEntry: (customType, data) => sessionManager
+      ? sessionManager.appendCustomEntry(customType, data)
+      : branch.push({ type: "custom", customType, data }),
     sendMessage: (message, options) => {
       assert.deepEqual(options, { triggerTurn: false });
       updates.push(message);
@@ -59,7 +64,6 @@ function harness(t, entries = []) {
     events, commands, sent, notices, statuses, ctx, skills,
     get branch() { return branch; },
     set branch(value) { branch = value; },
-    set projection(value) { projection = value; },
     emit: (name, event = {}) => events.get(name)(event, ctx),
     command: args => commands.get("ponytail").handler(args, ctx),
     update: timestamp => ({ role: "custom", ...updates.at(-1), timestamp }),
@@ -123,18 +127,59 @@ test("mode receipts append section updates without changing earlier request mess
   assert.deepEqual(messages, original);
 });
 
-test("startup receipts follow opted-in native heads without rewriting legacy order", async t => {
+test("native leading prompt and tool declarations stay in place before policy updates", async t => {
   const h = harness(t);
   await h.emit("session_start");
-  for (const nativeHead of [undefined, true]) {
-    const head = { role: "system", content: "NATIVE", toolsAdded: [{ name: "read" }], sections: { ponytail: section("full") }, timestamp: 1, ...(nativeHead ? { nativeHead } : {}) };
-    const messages = [h.update(0), head, { role: "user", content: "TASK", timestamp: 2 }];
-    const original = structuredClone(messages);
-    const result = (await h.emit("context_with_system", { messages })).messages;
-    assert.equal(result[nativeHead ? 0 : 1].content, "NATIVE");
-    assert.deepEqual(result[nativeHead ? 0 : 1].toolsAdded, head.toolsAdded);
-    assert.equal(result[nativeHead ? 1 : 0].sections.ponytail, section("full"));
-    assert.deepEqual(messages, original);
+  const head = { role: "system", content: "NATIVE", toolsAdded: [{ name: "read" }], sections: { ponytail: section("full") }, timestamp: 1 };
+  const messages = [head, h.update(2), { role: "user", content: "TASK", timestamp: 3 }];
+  const original = structuredClone(messages);
+  const result = (await h.emit("context_with_system", { messages })).messages;
+  assert.equal(result[0].content, "NATIVE");
+  assert.deepEqual(result[0].toolsAdded, head.toolsAdded);
+  assert.equal(result[1].sections.ponytail, section("full"));
+  assert.deepEqual(messages, original);
+});
+
+test("request policy lookup is append-only and compaction snapshots stay fixed on long branches", async t => {
+  for (const size of [10, 43000]) {
+    const sm = SessionManager.inMemory();
+    for (let i = 0; i < size; i++) sm.appendMessage({ role: "user", content: "archived", timestamp: i });
+    const anchor = sm.getLeafId();
+    const h = harness(t, [], sm);
+    await h.emit("session_start");
+    const getEntry = sm.getEntry.bind(sm), getBranch = sm.getBranch.bind(sm);
+    let reads = 0, branches = 0;
+    sm.getEntry = id => { reads++; return getEntry(id); };
+    sm.getBranch = (...args) => { branches++; return getBranch(...args); };
+    sm.buildSessionProjection = () => assert.fail("policy must not rebuild the model projection");
+    let messages = [{ role: "system", content: "NATIVE", timestamp: 0 }, h.update(1)];
+    const request = () => h.emit("context_with_system", { messages }).messages;
+    for (let i = 0; i < 3; i++) assert.equal(getCurrentSystemMessage(request()).sections.ponytail, section("full"));
+    assert.equal(reads, 0); assert.equal(branches, 0);
+    sm.appendMessage({ role: "user", content: "suffix", timestamp: size + 1 });
+    request();
+    assert.equal(reads, 1); assert.equal(branches, 0);
+    // appendCompaction itself uses Pi's native projection, not extension request work.
+    delete sm.buildSessionProjection;
+    sm.appendCompaction("", null, 100);
+    sm.buildSessionProjection = () => assert.fail("request policy must not rebuild projection");
+    reads = 0; branches = 0;
+    messages = [{ role: "system", content: "NATIVE", timestamp: 0 }];
+    const frozen = request();
+    assert.equal(getCurrentSystemMessage(frozen).sections.ponytail, section("full"));
+    assert.equal(reads, 1); assert.equal(branches, 1, "one boundary replay");
+    reads = 0; branches = 0;
+    assert.deepEqual(request(), frozen);
+    assert.equal(reads, 0); assert.equal(branches, 0);
+    await h.command("off");
+    messages = [...messages, h.update(size + 2)];
+    const off = request();
+    assert.deepEqual(off.slice(0, frozen.length), frozen);
+    assert.equal(getCurrentSystemMessage(off).sections?.ponytail, undefined);
+    assert.equal(reads, 1); assert.equal(branches, 0);
+    sm.branch(anchor);
+    await h.emit("session_tree");
+    assert.equal(h.before().sections.ponytail, getPonytailInstructions("full"));
   }
 });
 

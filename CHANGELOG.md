@@ -6,7 +6,10 @@
 
 - Preserve earlier request prefixes when changing Ponytail modes, including turning it off during a tool loop. Mode updates remain ordered through resume, compaction, and fresh context windows without starting extra model calls.
 - Qualify PRs against the maintained Pi fork's current `main`, recording the exact tested commit instead of retaining a stale fork pin.
-- Keep the startup policy after the host's marked native system/tool declaration on Pi forks with the declaration anchor, so lazily activated tools stay cache-safe deferred additions instead of rewriting the top-level tool list. Already-bound windows keep their order.
+- Require Pi 1.0.0 and qualify its exact eight-package cohort with host TypeBox 1.3.27.
+- Reconcile only appended ancestry entries during request preparation, freezing mode and superseded receipts once at each new compaction. Preserve historical branch-local policy and full native prompt/tool prefixes.
+- Retire unsupported fork-only native-head/replacement fields; use official named sections, skill discovery, and boundary semantics on both 1.0 targets.
+- Mark the fork package private to prevent accidental publication under the inherited upstream npm name. Git/GitHub delivery and every canonical generated platform export remain unchanged.
 
 ## 6.0.0
 

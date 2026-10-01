@@ -113,7 +113,7 @@ Copilot CLI agrupa los comandos del plugin bajo el nombre del plugin. Por ejempl
 
 ### Pi agent harness
 
-Requiere Pi 0.87.0 o posterior.
+Requiere Pi 1.0.0 o posterior.
 
 ```bash
 pi install git:github.com/fitchmultz/ponytail@v6.0.0
