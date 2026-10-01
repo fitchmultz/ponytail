@@ -1,8 +1,8 @@
 # Pi runtime contract
 
-Ponytail uses the public APIs shared by official Pi 0.99.1 and the supported Pi
-fork. Pi 0.87.0 remains the declared minimum; this development baseline does not
-claim a new qualification of older hosts. It does not change model selection, reasoning effort, context size, tools,
+Ponytail uses the public APIs shared by official Pi 1.0.0 and the maintained 1.0
+fork. Pi 1.0.0 is the minimum; the exact eight-package 1.0.0 cohort and host
+TypeBox 1.3.27 provide development qualification. It does not change model selection, reasoning effort, context size, tools,
 permissions, provider transport, or compaction policy.
 
 `/ponytail [off|lite|full|ultra]` controls persistent session mode. With no argument,
@@ -30,9 +30,12 @@ Compaction establishes a fixed mode checkpoint from that branch's state at the
 boundary. Retained older mode messages cannot override it; subsequent changes
 still apply in order. Summary-free rollover uses the same public compaction
 boundary with no retained entries; no retired fork context-window API is needed.
-A native prompt marked `replace` retains its Ponytail section because it discards
-earlier section updates. Cache reuse remains provider-dependent: compaction,
-summary-free rollover, and complete prompt replacements can change the shared prefix.
+Native Pi owns full prompt replacement. Former fork-only `nativeHead` and `replace`
+fields are not used as runtime contracts. Cache reuse remains provider-dependent:
+compaction, summary-free rollover, and complete prompt replacements can change the
+shared prefix. Hydration reads the branch once; requests reconcile only appended
+entries, and a new compaction freezes its boundary mode and superseded receipts
+once. No independent state journal or lossy history cap is added.
 Standalone `stop ponytail` and `normal mode` are handled locally; ordinary
 mentions of those phrases pass through.
 

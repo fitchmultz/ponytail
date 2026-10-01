@@ -68,6 +68,36 @@ export default function ponytailExtension(pi) {
   let currentMode = DEFAULT_MODE;
   let configuredDefaultMode = getDefaultMode();
   let hideStatus = getHideStatus();
+  let observedLeaf = null;
+  let compactionState;
+
+  function rememberCompaction(boundary, entries) {
+    compactionState = boundary && {
+      boundary,
+      mode: resolveSessionMode(entries, null),
+      receipts: new Set(entries.filter(entry => entry.type === "custom_message" && entry.customType === MODE_UPDATE)
+        .map(entry => entry.details?.id)),
+    };
+  }
+
+  function readCompaction(ctx) {
+    const sm = ctx.sessionManager;
+    const leaf = sm.getLeafId();
+    let id = leaf;
+    while (id && id !== observedLeaf) {
+      const entry = sm.getEntry(id);
+      if (!entry) break;
+      if (entry.type === "compaction") {
+        rememberCompaction(entry, sm.getBranch(entry.id));
+        observedLeaf = leaf;
+        return compactionState;
+      }
+      id = entry.parentId;
+    }
+    if (id !== observedLeaf) compactionState = undefined;
+    observedLeaf = leaf;
+    return compactionState;
+  }
 
   function notify(ctx, message, type = "info") {
     if (ctx.hasUI) ctx.ui.notify(message, type);
@@ -106,9 +136,13 @@ export default function ponytailExtension(pi) {
   function hydrate(_event, ctx) {
     configuredDefaultMode = getDefaultMode();
     hideStatus = getHideStatus();
-    const savedMode = resolveSessionMode(ctx.sessionManager.getBranch(), null);
+    const branch = ctx.sessionManager.getBranch();
+    const boundaryIndex = branch.findLastIndex(entry => entry.type === "compaction");
+    rememberCompaction(branch[boundaryIndex], branch.slice(0, boundaryIndex + 1));
+    const savedMode = resolveSessionMode(branch, null);
     currentMode = savedMode ?? configuredDefaultMode;
     if (savedMode === null) pi.appendEntry("ponytail-mode", { mode: currentMode });
+    observedLeaf = ctx.sessionManager.getLeafId();
     sendModeUpdate();
     syncStatus(ctx);
   }
@@ -188,22 +222,14 @@ export default function ponytailExtension(pi) {
   });
 
   pi.on("context_with_system", (event, ctx) => {
-    const boundary = ctx.sessionManager.buildSessionProjection().entries[0]?.sourceEntry;
-    const beforeCompaction = boundary?.type === "compaction" ? ctx.sessionManager.getBranch(boundary.id) : [];
-    const checkpointMode = resolveSessionMode(beforeCompaction, null);
-    const compactedReceipts = new Set(beforeCompaction
-      .filter(entry => entry.type === "custom_message" && entry.customType === MODE_UPDATE)
-      .map(entry => entry.details?.id));
+    const compacted = readCompaction(ctx);
     let input = event.messages;
-    // Only unbound windows opt in. Never move an already-bound legacy declaration.
-    const head = input.findIndex(message => message.role === "system" && message.nativeHead);
-    if (head > 0) input = [input[head], ...input.slice(0, head), ...input.slice(head + 1)];
-    if (checkpointMode !== null) {
+    if (compacted && compacted.mode !== null) {
       // Compaction discards receipts, not selected mode. Supersede retained old receipts
       // without relying on message offsets that another context hook may have changed.
       const checkpoint = {
-        role: "custom", customType: MODE_UPDATE, timestamp: Date.parse(boundary.timestamp),
-        content: checkpointMode === "off" ? "" : `<ponytail>\n${getPonytailInstructions(checkpointMode)}\n</ponytail>`,
+        role: "custom", customType: MODE_UPDATE, timestamp: Date.parse(compacted.boundary.timestamp),
+        content: compacted.mode === "off" ? "" : `<ponytail>\n${getPonytailInstructions(compacted.mode)}\n</ponytail>`,
       };
       const start = input[0]?.role === "system" ? 1 : 0;
       input = [...input.slice(0, start), checkpoint, ...input.slice(start)];
@@ -217,19 +243,16 @@ export default function ponytailExtension(pi) {
     const messages = input.flatMap((message, index) => {
       if (message.role === "custom" && message.customType === MODE_UPDATE) {
         changed = true;
-        if (message.details?.id && compactedReceipts.has(message.details.id)) return [];
+        if (message.details?.id && compacted?.receipts.has(message.details.id)) return [];
         const next = message.content || undefined;
         if (next === policy) return [];
         policy = next;
         return [{ role: "system", content: "", sections: { ponytail: next ?? null }, timestamp: message.timestamp }];
       }
       if (message.role !== "system") return [message];
-      if (message.replace) policy = undefined;
       const ponytail = message.sections?.ponytail;
-      // Receipts own ordinary mode history. Keep a host replacement's section:
-      // a replacement discards earlier receipts as well as earlier system sections.
-      const removePolicy = ponytail !== undefined && !message.replace;
-      if (message.replace && ponytail !== undefined) policy = ponytail ?? undefined;
+      // Receipts own mode history. Full-prompt takeovers remain native host policy.
+      const removePolicy = ponytail !== undefined;
       const skills = message.sections?.skills;
       const filteredSkills = coreEntry && typeof skills === "string" ? skills.replace(coreEntry, "") : skills;
       if (!removePolicy && skills === filteredSkills) return [message];

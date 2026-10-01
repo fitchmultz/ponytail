@@ -127,10 +127,10 @@ Copilot CLI namespaces plugin commands by plugin name. For example:
 
 ### Pi agent harness
 
-Requires Pi **0.87.0 or newer**; the development baseline is official **0.99.1**, qualified separately from the maintained fork. Earlier releases are unsupported; the current baseline does not requalify older hosts.
+Requires Pi **1.0.0 or newer** on Node **24.15 or newer**. The development cohort is exact official **1.0.0** with host TypeBox **1.3.27**; both supported 1.0 targets use public APIs.
 
 ```bash
-pi install git:github.com/fitchmultz/ponytail@v6.0.0
+pi install git:github.com/fitchmultz/ponytail@v7.0.0
 ```
 
 Keep one Ponytail package configured. When switching from upstream, remove its package entry and preserve any per-skill filters on the new entry. Reload Pi after installation.
@@ -145,7 +145,7 @@ The status indicator shows mode only. `quietStartup` suppresses the startup noti
 
 The extension owns one named prompt section and leaves other sections and tools intact. A different extension that deliberately replaces the **entire** system prompt can override structured sections; that native precedence is preserved. `off` removes only Ponytail’s section, not independent repository `AGENTS.md` rules or earlier skill messages.
 
-On Pi forks with the native declaration anchor, Ponytail keeps its startup policy after the host's marked system/tool head. Unmarked, already-bound windows retain their existing order; the updated host adopts the anchor at their next compaction (including summary-free rollover). Updating Ponytail alone does not repair the host's startup ordering or invalidate/rewrite old history.
+Pi owns the leading system/tool declarations and native prompt replacement. Ponytail projects only its own policy receipts as ordered named-section updates. Request preparation reconciles new ancestry entries and caches each compaction's fixed mode/receipt state; it does not rebuild the full session projection on every provider request. Legacy mode receipts remain readable without fork-only runtime fields.
 
 The core skill remains packaged for standalone use. With the extension active it is omitted from automatic skill selection; explicit `/skill:ponytail` still expands the standalone instructions and does **not** change persistent mode. Use `/ponytail` for persistent controls.
 

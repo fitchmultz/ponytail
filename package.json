@@ -1,6 +1,7 @@
 {
   "name": "@dietrichgebert/ponytail",
-  "version": "6.0.0",
+  "private": true,
+  "version": "7.0.0",
   "description": "Lazy senior dev mode for AI agents. The best code is the code you never wrote.",
   "keywords": ["opencode-plugin", "opencode", "ponytail", "pi-package", "pi", "skills", "qoder"],
   "license": "MIT",
@@ -54,12 +55,9 @@
     "@earendil-works/pi-coding-agent": { "optional": true }
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "0.99.1",
-    "@earendil-works/pi-coding-agent": "0.99.1",
+    "@earendil-works/pi-ai": "1.0.0",
+    "@earendil-works/pi-coding-agent": "1.0.0",
     "@npmcli/promise-spawn": "10.0.0"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }
 
