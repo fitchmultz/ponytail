@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 7.0.0
 
 ### Pi
 
@@ -10,6 +10,8 @@
 - Reconcile only appended ancestry entries during request preparation, freezing mode and superseded receipts once at each new compaction. Preserve historical branch-local policy and full native prompt/tool prefixes.
 - Retire unsupported fork-only native-head/replacement fields; use official named sections, skill discovery, and boundary semantics on both 1.0 targets.
 - Mark the fork package private to prevent accidental publication under the inherited upstream npm name. Git/GitHub delivery and every canonical generated platform export remain unchanged.
+
+Install with `pi install git:github.com/fitchmultz/ponytail@v7.0.0`.
 
 ## 6.0.0
 

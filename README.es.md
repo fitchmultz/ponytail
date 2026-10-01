@@ -116,7 +116,7 @@ Copilot CLI agrupa los comandos del plugin bajo el nombre del plugin. Por ejempl
 Requiere Pi 1.0.0 o posterior.
 
 ```bash
-pi install git:github.com/fitchmultz/ponytail@v6.0.0
+pi install git:github.com/fitchmultz/ponytail@v7.0.0
 ```
 
 Mantén una sola instalación de Ponytail y conserva tus filtros de skills al cambiar de paquete. Recarga Pi después de instalar.

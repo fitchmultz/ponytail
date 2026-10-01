@@ -130,7 +130,7 @@ Copilot CLI namespaces plugin commands by plugin name. For example:
 Requires Pi **1.0.0 or newer** on Node **24.15 or newer**. The development cohort is exact official **1.0.0** with host TypeBox **1.3.27**; both supported 1.0 targets use public APIs.
 
 ```bash
-pi install git:github.com/fitchmultz/ponytail@v6.0.0
+pi install git:github.com/fitchmultz/ponytail@v7.0.0
 ```
 
 Keep one Ponytail package configured. When switching from upstream, remove its package entry and preserve any per-skill filters on the new entry. Reload Pi after installation.
