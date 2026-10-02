@@ -95,7 +95,7 @@ function check() {
   return stale.length === 0;
 }
 
-module.exports = { DESCRIPTIONS, NAMES, render, outPath, sourceBody, generatedFiles, check };
+module.exports = { DESCRIPTIONS, NAMES, generatedFiles, check };
 
 if (require.main === module) {
   if (process.argv.includes('--check')) {

@@ -107,11 +107,6 @@ test('cursor hooks template is a valid hooks.json with the two events that can i
   }
 });
 
-test('isCursor is off outside a Cursor hook process', () => {
-  const { isCursor } = require('../hooks/ponytail-runtime');
-  assert.equal(isCursor, false);
-});
-
 test('sessionStart injects the default-level ruleset as additional_context and keeps state under ~/.cursor', () => {
   const c = cursorEnv('start', { PONYTAIL_DEFAULT_MODE: 'ultra' });
   const input = JSON.stringify({

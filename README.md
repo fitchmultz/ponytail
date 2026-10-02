@@ -316,6 +316,8 @@ npm test
 
 The generator checks every exported policy copy; stale output fails validation. Native Pi contract tests use the pinned SDK development dependency. See [native evaluations](benchmarks/pi/README.md) for live Astra checks. GitHub releases contain the installable package; release tags are validated by CI, and this fork does not publish the upstream npm namespace.
 
+Keep generated-copy drift checks in `tests/openclaw-skills.test.js`, release version/tag checks in `scripts/check-versions.js`, and host detection in spawned hook I/O tests rather than ambient predicate probes. Retain distinct manifest wiring, description limits, native lifecycle, and executable benchmark controls.
+
 The correctness benchmark spawns Python for email and CSV checks; `python3` is tried before `python`. CSV checks need `pandas` installed locally.
 
 ## FAQ

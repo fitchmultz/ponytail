@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { NAMES, render, outPath, sourceBody, DESCRIPTIONS, generatedFiles } = require('../scripts/build-openclaw-skills');
+const { NAMES, DESCRIPTIONS, generatedFiles } = require('../scripts/build-openclaw-skills');
 
 test('every shipped standalone skill, rule, and command matches its canonical source', () => {
   for (const [relative, expected] of generatedFiles()) {
@@ -17,16 +17,6 @@ test('every shipped standalone skill, rule, and command matches its canonical so
 });
 
 for (const name of NAMES) {
-  test(`${name}: committed OpenClaw skill matches the generator`, () => {
-    const onDisk = fs.readFileSync(outPath(name), 'utf8').replace(/\r\n/g, '\n');
-    assert.equal(onDisk, render(name), 'stale — run: node scripts/build-openclaw-skills.js');
-  });
-
-  test(`${name}: body is the canonical skills/${name} body, verbatim`, () => {
-    const onDisk = fs.readFileSync(outPath(name), 'utf8').replace(/\r\n/g, '\n');
-    assert.ok(onDisk.endsWith(sourceBody(name)), 'body drifted from skills/' + name);
-  });
-
   test(`${name}: description is one line under 160 chars`, () => {
     const d = DESCRIPTIONS[name];
     assert.ok(d.length <= 160 && !d.includes('\n'), 'description too long or multiline');
