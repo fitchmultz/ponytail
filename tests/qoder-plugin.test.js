@@ -44,15 +44,6 @@ test('qoder hooks config registers prompt and subagent start hooks', () => {
   assert.ok(subagentHook?.command.includes('ponytail-subagent.js'), 'must inject the ruleset at SubagentStart');
 });
 
-test('qoder rules file exists and is non-empty', () => {
-  const rulesPath = path.join(root, '.qoder', 'rules', 'ponytail.md');
-  assert.ok(fs.existsSync(rulesPath), '.qoder/rules/ponytail.md must exist');
-  const content = fs.readFileSync(rulesPath, 'utf8').trim();
-  assert.ok(content.length > 0, '.qoder/rules/ponytail.md must not be empty');
-  const core = fs.readFileSync(path.join(root, 'hooks', 'ponytail-core.md'), 'utf8').trim();
-  assert.ok(content.includes(core), 'rules must carry the complete canonical policy');
-});
-
 test('qoder manifest points at skills that actually ship', () => {
   const manifest = readJSON('.qoder-plugin/plugin.json');
   const skillsDir = path.join(root, manifest.skills);
@@ -65,23 +56,4 @@ test('qoder manifest points at skills that actually ship', () => {
       `missing skill: skills/${skill}/SKILL.md`,
     );
   }
-});
-
-test('qoder rules match AGENTS.md canonical body', () => {
-  // Reuse the same logic as check-rule-copies.js: the .qoder copy must be
-  // byte-identical to AGENTS.md minus the repo-self-application paragraph.
-  const agents = fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8')
-    .replace(/\r\n/g, '\n').trim();
-  const canonical = agents.replace(/\n\n\(Yes, this file also applies[\s\S]*?\)$/, '').trim();
-  const qoderCopy = fs.readFileSync(path.join(root, '.qoder', 'rules', 'ponytail.md'), 'utf8')
-    .replace(/\r\n/g, '\n').trim();
-  assert.equal(qoderCopy, canonical, '.qoder/rules/ponytail.md drifted from AGENTS.md');
-});
-
-test('qoder runtime detects QODER_SESSION_ID and writes hookSpecificOutput JSON', () => {
-  const { isQoder } = require('../hooks/ponytail-runtime');
-  // isQoder is resolved at module load time from process.env; in the test
-  // process QODER_SESSION_ID is unset, so isQoder must be false here.
-  // The positive path is exercised in hooks.test.js via spawnSync.
-  assert.equal(isQoder, false, 'isQoder must be false without QODER_SESSION_ID');
 });

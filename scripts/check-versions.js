@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 // Every release manifest must match the root package version and release tag.
 //
-// tests/gemini-extension.test.js already checks the four plugin manifests agree
-// with each other, but that can't catch the failure mode that shipped in v4.8.0:
-// every manifest stayed stale at 4.7.0 *together* while the release moved on, so
-// they "agreed" and the test passed (#260, #262). It also ignores the two
-// package.json files. This check closes both gaps:
+// In v4.8.0 every plugin manifest agreed at a stale 4.7.0 while the release
+// moved on (#260, #262). Mutual agreement alone cannot catch this; enforce:
 //   1. every version-bearing file must share one pinned X.Y.Z version, and
 //   2. on a release-tag CI run, that shared version must equal the tag.
 
