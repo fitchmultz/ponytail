@@ -49,7 +49,9 @@ With ponytail:
 <input type="date">
 ```
 
-More survivors in [examples/](examples/).
+Use the native control when it covers the requested UX. If richer behavior is
+required, install a suitable maintained date-picker library rather than building
+a custom substitute. More historical examples in [examples/](examples/).
 
 ## Evidence
 
@@ -66,14 +68,19 @@ Before writing code, the agent stops at the first rung that holds:
 2. Already in this codebase?  → reuse it, don't rewrite
 3. Stdlib does it?            → use it
 4. Native platform feature?   → use it
-5. Installed dependency?      → use it
-6. Simple implementation?     → preserve the full behavior
-7. Only then: the minimum that works
+5. Mature OSS fits?           → use it; install useful dependencies
+6. Project logic or real gap? → implement the complete behavior
 ```
 
 The ladder runs *after* it understands the problem, not instead of it: it reads the code the change touches and traces the real flow before picking a rung. Lazy about the solution, never about reading.
 
 Lazy, not negligent: trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block.
+
+Make ordinary decisions and finish authorized work without approval ceremony.
+Use the tools, permissions, and subagents that help deliver the complete result.
+Ask only for user-only information or access, or before unrequested actions with
+concrete irreversible-loss, private-data disclosure, or substantial financial risk.
+Simplicity is not dependency avoidance or reduced capability.
 
 ## Install
 

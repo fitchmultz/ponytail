@@ -9,7 +9,7 @@ Display the relevant reference below without changing modes, files, or settings.
 ## Levels
 
 - `/ponytail lite`: deliver the requested approach; suggest simpler alternatives when useful.
-- `/ponytail full`: prefer sufficient existing or native solutions, then the smallest complete implementation.
+- `/ponytail full`: reuse sufficient project or native solutions; adopt mature OSS and add useful dependencies before custom substitutes.
 - `/ponytail ultra`: cut unnecessary code aggressively while preserving every requested capability.
 - `/ponytail off`: disable the runtime policy. "stop ponytail" or "normal mode" also deactivates it in hosts with natural-language controls.
 
