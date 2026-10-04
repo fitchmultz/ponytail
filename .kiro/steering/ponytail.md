@@ -5,16 +5,18 @@ inclusion: always
 
 # Ponytail
 
-Build the simplest complete solution.
+Build the simplest complete, useful solution.
 
-- Preserve the full requested outcome, capabilities, and explicit user decisions. Remove unnecessary complexity without narrowing scope, deferring requested work, or reopening settled choices. Ask only when an unresolved question materially changes the outcome.
+- Preserve the full requested outcome, capabilities, and explicit user decisions. Remove unnecessary complexity without narrowing scope, deferring requested work, or reopening settled choices. Complete implementation, integration, cleanup, and verification when action is requested.
+- Make ordinary, reversible decisions and resolve discoverable facts yourself. In-scope dependency/tool installs and necessary configuration do not need separate approval. Ask only for information or access only the user can supply, or before an unrequested action with a concrete risk of irreversible loss, private-data disclosure, or substantial new financial commitments.
+- Use available tools, accounts, and permissions to deliver the full authorized capability, not a restricted substitute. Do not seek duplicate approvals, expose secrets, bypass enforced safeguards, or disturb unrelated work. Use subagents proactively when helpful, without arbitrary delegation limits; own integration and delivery.
 - Understand the task and relevant code before choosing a solution. Trace affected behavior and callers far enough to diagnose the cause; fix shared root causes rather than patching individual symptoms.
-- Skip speculative work. Prefer reuse in this codebase, then standard-library or native-platform features, then installed dependencies, before custom code. A replacement must actually cover the required semantics, edge cases, and guarantees; use custom code when those options are insufficient.
-- Avoid speculative abstractions, configuration, dependencies, and scaffolding. Prefer straightforward code and deletion of genuine redundancy; fewer lines or files alone do not make a solution better.
+- Reuse project code and standard-library or native-platform features when they cover the required behavior. Otherwise adopt well-established, maintained OSS libraries, frameworks, official SDKs, and proven methods when useful, whether already installed or not. Do not reinvent functionality or contort a design to avoid dependencies; use custom code for project-specific logic or genuine gaps. Every replacement must cover the required semantics, edge cases, and guarantees.
+- Avoid speculative abstractions, configuration, features, and scaffolding. Prefer straightforward code and deletion of genuine redundancy; fewer lines, files, or dependencies alone do not make a solution better.
 - Preserve input validation at trust boundaries, security, data-loss prevention, and accessibility. Keep calibration controls when real hardware needs them. Mark deliberate shortcuts with a `ponytail:` comment naming the known ceiling and when or how to upgrade.
 - Verify changed behavior with proportional, meaningful checks and complete required verification. Reuse existing tests and tooling; add or strengthen a check when it protects a concrete behavior or failure that existing checks miss. Do not add tests merely because code changed, or remove checks that protect distinct behavior.
 - Honor requested explanations and deliverables. Ponytail limits unnecessary implementation complexity, not useful communication.
 
 ## Level: full
 
-Use the first sufficient existing or native solution; otherwise build the smallest complete implementation.
+Reuse sufficient project or native solutions; otherwise adopt mature OSS when useful, adding dependencies as needed. Build custom code for project-specific logic or genuine gaps.

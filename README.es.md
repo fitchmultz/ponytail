@@ -38,7 +38,9 @@ Con ponytail:
 <input type="date">
 ```
 
-Más sobrevivientes en [examples/](examples/).
+Usa el control nativo cuando cubra la experiencia solicitada. Si se necesita
+funcionalidad más completa, instala una biblioteca mantenida en vez de crear
+un sustituto propio. Más ejemplos históricos en [examples/](examples/).
 
 ## Evidencia
 
@@ -55,14 +57,20 @@ Antes de escribir código, el agente se detiene en el primer peldaño que aguant
 2. ¿Ya existe en este código?     → reúsalo, no lo reescribas
 3. ¿Lo hace la stdlib?            → úsala
 4. ¿Es una feature nativa?        → úsala
-5. ¿Una dependencia ya instalada? → úsala
-6. ¿Implementación simple?       → conservar el comportamiento
-7. Solo entonces: el mínimo que funciona
+5. ¿Encaja una solución OSS madura? → úsala; instala dependencias útiles
+6. ¿Lógica propia o una carencia real? → implementar todo el comportamiento
 ```
 
 La escalera se recorre *después* de entender el problema, no en su lugar: lee el código que toca el cambio y sigue el flujo real antes de elegir un peldaño. Flojo en la solución, nunca en la lectura.
 
 Flojo, no negligente: la validación en límites de confianza, el manejo de pérdida de datos, la seguridad y la accesibilidad nunca están en riesgo.
+
+Toma las decisiones habituales y termina el trabajo autorizado sin pedir
+aprobaciones innecesarias. Usa las herramientas, permisos y subagentes que ayuden
+a entregar el resultado completo. Pregunta solo por información o acceso que
+únicamente el usuario pueda proporcionar, o antes de acciones no solicitadas con
+riesgo concreto de pérdida irreversible, divulgación de datos privados o gastos
+nuevos importantes. La simplicidad no significa evitar dependencias ni reducir capacidades.
 
 ## Instalación
 
