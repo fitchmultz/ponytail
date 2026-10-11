@@ -61,8 +61,7 @@ pi install git:github.com/fitchmultz/ponytail
 pi update git:github.com/fitchmultz/ponytail
 ```
 
-Pinned refs stay pinned; install `git:github.com/fitchmultz/ponytail@<ref>` to
-select a different revision. Reload or restart as required by the host.
+Reload or restart as required by the host.
 
 Fork: https://github.com/fitchmultz/ponytail
 Upstream docs/examples: https://github.com/DietrichGebert/ponytail
