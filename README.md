@@ -152,7 +152,7 @@ The status indicator shows mode only. `quietStartup` suppresses the startup noti
 
 The extension owns one named prompt section and leaves other sections and tools intact. A different extension that deliberately replaces the **entire** system prompt can override structured sections; that native precedence is preserved. `off` removes only Ponytail’s section, not independent repository `AGENTS.md` rules or earlier skill messages.
 
-Pi owns the leading system/tool declarations and native prompt replacement. Ponytail projects only its own policy receipts as ordered named-section updates. Request preparation reconciles new ancestry entries and caches each compaction's fixed mode/receipt state; it does not rebuild the full session projection on every provider request. Legacy mode receipts remain readable without fork-only runtime fields.
+Pi owns the leading system/tool declarations and native prompt replacement. Ponytail folds startup policy receipts into the first native tool-bearing head only while the prefix contains no conversation. Later policy and tool changes stay ordered in place, preserving the initial declarations for native inline-tool transports. Request preparation reconciles new ancestry entries and caches each compaction's fixed mode/receipt state; it does not rebuild the full session projection on every provider request. Legacy mode receipts remain readable without fork-only runtime fields.
 
 The core skill remains packaged for standalone use. With the extension active it is omitted from automatic skill selection; explicit `/skill:ponytail` still expands the standalone instructions and does **not** change persistent mode. Use `/ponytail` for persistent controls.
 

@@ -16,13 +16,14 @@ const sdk = await import(pathToFileURL(join(packageRoot, "dist/index.js")));
 const aiPath = [join(packageRoot, "node_modules/@earendil-works/pi-ai/dist/index.js"), join(dirname(packageRoot), "pi-ai/dist/index.js")].find(existsSync);
 const ai = await import(pathToFileURL(aiPath));
 const { openaiCodexProvider } = await import(pathToFileURL(join(dirname(aiPath), "providers/openai-codex.js")));
+const { anthropicProvider } = await import(pathToFileURL(join(dirname(aiPath), "providers/anthropic.js")));
 globalThis.fetch = async () => { throw new Error("Network forbidden in Ponytail contract tests"); };
 const text = message => typeof message.content === "string" ? message.content : message.content.filter(part => part.type === "text").map(part => part.text).join("\n");
 const { getPonytailInstructions } = createRequire(import.meta.url)("../../hooks/ponytail-instructions.js");
 const body = mode => `<ponytail>\n${getPonytailInstructions(mode)}\n</ponytail>`;
 const done = () => ai.fauxAssistantMessage("DONE");
 
-async function open(t, { extension = true, filtered = false, userSkill = false, defaultMode = "full", sessionFile, forced = false, customSkills = false } = {}) {
+async function open(t, { extension = true, filtered = false, userSkill = false, defaultMode = "full", sessionFile, forced = false, customSkills = false, tools = ["read", "hold"] } = {}) {
   Object.assign(process.env, { PONYTAIL_DEFAULT_MODE: defaultMode, PONYTAIL_HIDE_STATUS: "0", PONYTAIL_QUIET_STARTUP: "1" });
   const cwd = mkdtempSync(join(scratch, "project-"));
   const agentDir = join(cwd, "agent"), sessionDir = join(cwd, "sessions");
@@ -65,7 +66,7 @@ async function open(t, { extension = true, filtered = false, userSkill = false, 
         pi.registerCommand("wake", { handler() { pi.sendMessage({ customType: "wake", content: "WAKE", display: false }, { triggerTurn: true }); } });
       }],
     } });
-    const result = await sdk.createAgentSessionFromServices({ services, sessionManager, sessionStartEvent, model: faux.getModel(), thinkingLevel: "max", tools: ["read", "hold"] });
+    const result = await sdk.createAgentSessionFromServices({ services, sessionManager, sessionStartEvent, model: faux.getModel(), thinkingLevel: "max", tools });
     assert.deepEqual(result.extensionsResult.errors, []);
     return { ...result, services, diagnostics: services.diagnostics };
   };
@@ -104,7 +105,10 @@ async function open(t, { extension = true, filtered = false, userSkill = false, 
   };
 }
 
-function section(request) { return ai.getCurrentSystemMessage(request.messages)?.sections?.ponytail; }
+function section(request) {
+  assert.ok(request.messages[0]?.toolsAdded?.length, "The native initial tool declaration must lead");
+  return ai.getCurrentSystemMessage(request.messages)?.sections?.ponytail;
+}
 
 function preserved(request) {
   assert.match(ai.getCurrentSystemPrompt(request.messages), /USER CUSTOM PROMPT/);
@@ -114,6 +118,108 @@ function preserved(request) {
   assert.equal(request.model.contextWindow, 600000);
   assert.equal(request.options.reasoning, "max");
 }
+
+test("native startup receipts preserve Anthropic's serialized anchor through dynamic tools and effort replay", { timeout: 15000 }, async t => {
+  const h = await open(t, { tools: ["hold", "late"] });
+  const gates = [h.gate(), h.gate(), h.gate()];
+  h.responses([...gates.map((_, id) => {
+    const response = h.tool(id);
+    return { ...response, providerThinkingLevel: ["max", "low", "medium"][id], content: [{ type: "thinking", thinking: `fixture ${id}`, thinkingSignature: `opaque-fixture-${id}` }, ...response.content] };
+  }), done()]);
+  const running = h.session.prompt("DISCOVER THEN REDEFINE THEN REMOVE");
+  const late = description => ({
+    name: "late", label: "late", description, parameters: ai.Type.Object({ value: ai.Type.String() }),
+    async execute() { return { content: [{ type: "text", text: "late result" }], details: {} }; },
+  });
+  await gates[0].entered.promise;
+  h.api.registerTool(late("First definition"));
+  h.api.setActiveTools(["hold", "late"]);
+  h.api.setThinkingLevel("low");
+  gates[0].release.resolve();
+  await gates[1].entered.promise;
+  h.api.registerTool(late("Replacement definition"));
+  h.api.setThinkingLevel("medium");
+  gates[1].release.resolve();
+  await gates[2].entered.promise;
+  h.api.setActiveTools(["hold"]);
+  h.api.setThinkingLevel("max");
+  await h.mode("off");
+  gates[2].release.resolve();
+  await running;
+
+  const branch = h.session.sessionManager.getBranch();
+  assert.ok(branch.findIndex(e => e.type === "custom_message" && e.customType === "ponytail-mode-update") <
+    branch.findIndex(e => e.type === "message" && e.message.toolsAdded?.length), "The real startup receipt precedes the native declaration");
+  assert.deepEqual(h.requests.map(r => ai.getCurrentTools(r.messages).map(tool => tool.name)), [["hold"], ["hold", "late"], ["hold", "late"], ["hold"]]);
+  assert.deepEqual(h.requests.map(r => r.options.reasoning), ["max", "low", "medium", "max"]);
+  const provider = anthropicProvider();
+  const model = provider.getModels().find(m => m.id === "claude-opus-5-5");
+  assert.ok(model);
+  const payloads = [], betas = [];
+  for (const request of h.requests) {
+    // Faux transport supplies opaque signed fixtures; replay their native provenance.
+    const messages = request.messages.map(message => message.role === "assistant"
+      ? { ...message, api: model.api, provider: model.provider, model: model.id }
+      : message);
+    const result = await provider.streamSimple(model, { messages }, {
+      apiKey: "dummy-offline-key", reasoning: request.options.reasoning, cacheRetention: "long",
+      async fetch(input, init) {
+        const wire = new Request(input, init);
+        assert.equal(new URL(wire.url).pathname, "/v1/messages");
+        payloads.push(await wire.json());
+        betas.push(wire.headers.get("anthropic-beta"));
+        const events = [
+          { type: "message_start", message: { id: "mock", type: "message", role: "assistant", model: model.id, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 } } },
+          { type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 0 } },
+          { type: "message_stop" },
+        ];
+        return new Response(events.map(event => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join(""), {
+          headers: { "content-type": "text/event-stream" },
+        });
+      },
+    }).result();
+    assert.equal(result.stopReason, "stop", result.errorMessage);
+  }
+  assert.equal(payloads.length, 4, "Every request reached final native SDK serialization");
+  const blocks = payload => payload.messages.flatMap(message => message.content);
+  // Strip only protocol cache markers at message/block boundaries, never opaque tool data.
+  const semanticMessages = payload => payload.messages.map(({ content, ...message }) => ({
+    ...message, content: content.map(({ cache_control, ...block }) => block),
+  }));
+  const additions = payloads.map(payload => blocks(payload).filter(block => block.type === "tool_addition"));
+  // Pi 1.0 references deferred schemas; 1.1+ defines them inline. Exercise the
+  // native dialect actually delivered, without a version-string or source probe.
+  const references = additions[1][0]?.tool.type === "tool_reference";
+  for (const [index, payload] of payloads.entries()) {
+    if (!references) assert.deepEqual(payload.tools, payloads[0].tools, "Initial declarations must not change with late tools");
+    assert.deepEqual(payload.system, payloads[0].system, "The leading prompt must remain stable");
+    if (index && (!references || index === 1)) {
+      // The last effort is for the upcoming assistant; historical efforts are fixed.
+      const previous = semanticMessages(payloads[index - 1]).slice(0, -1);
+      assert.deepEqual(semanticMessages(payload).slice(0, previous.length), previous, "Old signed input must remain stable");
+    }
+  }
+  assert.deepEqual(payloads[0].tools.map(tool => tool.name), ["hold", "__pi_deferred_placeholder__"]);
+  if (references) {
+    assert.deepEqual(payloads[1].tools.slice(0, payloads[0].tools.length), payloads[0].tools);
+    assert.equal(payloads[1].tools[2].name, "late");
+    assert.equal(payloads[1].tools[2].defer_loading, true);
+    assert.deepEqual(additions.map(list => list.map(block => block.tool.name)), [[], ["late"], [], []]);
+    assert.deepEqual(payloads.slice(2).map(payload => payload.tools.map(tool => tool.name)), [["hold", "late"], ["hold"]]);
+    assert.equal(payloads[2].tools[1].description, "Replacement definition");
+    assert.deepEqual(betas.map(beta => beta?.split(",").includes("mid-conversation-tool-changes-2026-07-01")), [true, true, false, false]);
+    t.diagnostic("Native reference-only transport: deferred append preserves initial declarations; redefinition uses host fallback");
+  } else {
+    assert.ok(betas.every(beta => beta?.split(",").includes("inline-tools-2026-09-15")));
+    assert.deepEqual(additions.map(list => list.map(block => block.tool.definition.description)),
+      [[], ["First definition"], ["First definition", "Replacement definition"], ["First definition", "Replacement definition"]]);
+    assert.deepEqual(payloads.map(payload => blocks(payload).filter(block => block.type === "tool_removal" && block.tool.name === "late").length), [0, 0, 0, 1]);
+  }
+  assert.deepEqual(blocks(payloads[3]).filter(block => block.type === "thinking").map(block => block.signature), ["opaque-fixture-0", "opaque-fixture-1", "opaque-fixture-2"]);
+  assert.deepEqual(payloads[3].messages.filter(message => message.output_config).map(message => message.output_config.effort), ["max", "low", "medium", "max"]);
+  assert.deepEqual(h.requests.map(section), [body("full"), body("full"), body("full"), undefined]);
+  assert.deepEqual(h.requests[0].messages[0].toolsAdded.map(tool => tool.name), ["hold"]);
+});
 
 test("native unchanged loops retain one policy copy and every previous request message", { timeout: 15000 }, async t => {
   const h = await open(t);

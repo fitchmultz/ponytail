@@ -23,6 +23,11 @@ session messages without waking the model. Each request projects those messages
 as native section updates, including a removal when switching off. Earlier
 request messages stay unchanged through mode changes, tool-loop continuations,
 and the next ordinary turn. Redundant updates are omitted from model context.
+Startup receipts before Pi's first tool-bearing system declaration are folded
+into that head using native prompt/section composition. Folding stops at the
+first declaration or conversation message; later tool additions, redefinitions,
+and removals never move into the initial tool list. Tool-free startup remains
+tool-free rather than inventing an active tool.
 Mode changes during work apply at the next provider request without interrupting
 the task or making an extra request. Earlier journal entries are never rewritten.
 
@@ -72,7 +77,17 @@ After installing the root development dependencies, run
 root SDK rather than an inherited host override. The native tests use Pi's
 resource loader, session runtime, package filters, and deterministic faux
 provider. Codex prefix checks capture the real adapter's request payload and stop
-before networking. They make no live model calls.
+before networking. The Anthropic regression uses a real startup receipt before
+one native tool declaration, dynamic addition/redefinition/removal, mode and
+effort changes, and final SDK serialization into a mocked fetch. It checks fixed
+initial declarations and prompt, positional tool changes, historical effort,
+opaque signed fixtures, and unchanged old semantic input (excluding only moving
+protocol cache markers and the upcoming assistant's effort). No test makes live
+model calls or claims provider cache billing or signature validation.
+Official Pi 1.0's older Anthropic transport instead appends deferred schemas and
+falls back to current tools for redefinitions; the regression checks that native
+behavior without claiming the stronger inline-definition guarantee of Pi 1.1
+and the current fork. Ponytail preserves the SDK's initial anchor on both.
 To exercise another installed host, such as the fork, with the same contract
 suite, point `PI_PACKAGE_DIR` at its installed package:
 

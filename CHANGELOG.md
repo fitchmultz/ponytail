@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Pi
+
+- Keep startup policy receipts from displacing Pi's native initial tool declaration. Later tools remain positional additions, redefinitions, and removals instead of rewriting the provider's initial tool list.
+
 ## 7.0.0
 
 ### Pi
