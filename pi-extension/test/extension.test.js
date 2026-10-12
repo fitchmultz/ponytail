@@ -127,17 +127,42 @@ test("mode receipts append section updates without changing earlier request mess
   assert.deepEqual(messages, original);
 });
 
-test("native leading prompt and tool declarations stay in place before policy updates", async t => {
+test("native leading prompt and tool declarations anchor either startup receipt order", async t => {
   const h = harness(t);
   await h.emit("session_start");
-  const head = { role: "system", content: "NATIVE", toolsAdded: [{ name: "read" }], sections: { ponytail: section("full") }, timestamp: 1 };
-  const messages = [head, h.update(2), { role: "user", content: "TASK", timestamp: 3 }];
-  const original = structuredClone(messages);
-  const result = (await h.emit("context_with_system", { messages })).messages;
-  assert.equal(result[0].content, "NATIVE");
-  assert.deepEqual(result[0].toolsAdded, head.toolsAdded);
-  assert.equal(result[1].sections.ponytail, section("full"));
-  assert.deepEqual(messages, original);
+  const head = { role: "system", content: "NATIVE", toolsAdded: [{ name: "read" }], sections: { ponytail: section("full"), companion: "OTHER" }, timestamp: 1, extra: "KEPT" };
+  const tail = [
+    { role: "user", content: "TASK", timestamp: 3 },
+    { role: "system", content: "LATER", toolsAdded: [{ name: "late" }], toolsRemoved: [{ name: "read" }], timestamp: 4 },
+  ];
+  for (const prefix of [[head, h.update(2)], [h.update(0), head]]) {
+    const messages = [...prefix, ...tail];
+    const original = structuredClone(messages);
+    const result = (await h.emit("context_with_system", { messages })).messages;
+    assert.deepEqual(result[0], { ...head, sections: {
+      ...(prefix[0] === head ? {} : { ponytail: section("full") }), companion: "OTHER",
+    } });
+    if (prefix[0] === head) assert.equal(result[1].sections.ponytail, section("full"));
+    assert.deepEqual(result.slice(-tail.length), tail);
+    assert.equal(getCurrentSystemMessage(result).sections.ponytail, section("full"));
+    assert.deepEqual(messages, original);
+  }
+});
+
+test("startup without tools never pulls declarations across conversation into the head", async t => {
+  const h = harness(t);
+  await h.emit("session_start");
+  const head = { role: "system", content: "NO INITIAL TOOLS", timestamp: 1 };
+  const tail = [
+    { role: "user", content: "TASK", timestamp: 2 },
+    { role: "system", content: "LATE", toolsAdded: [{ name: "late" }], timestamp: 3 },
+  ];
+  for (const prefix of [[h.update(0), head], [head, h.update(0)]]) {
+    const result = (await h.emit("context_with_system", { messages: [...prefix, ...tail] })).messages;
+    assert.equal(result[0].toolsAdded, undefined);
+    assert.equal(result.length, 4);
+    assert.deepEqual(result.slice(-tail.length), tail);
+  }
 });
 
 test("request policy lookup is append-only and compaction snapshots stay fixed on long branches", async t => {

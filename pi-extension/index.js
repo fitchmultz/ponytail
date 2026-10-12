@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { getCurrentSystemMessage } from "@earendil-works/pi-ai";
 import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
 
 const require = createRequire(import.meta.url);
@@ -265,6 +266,18 @@ export default function ponytailExtension(pi) {
           Object.keys(message).every(key => ["role", "content", "sections", "timestamp"].includes(key))) return [];
       return [{ ...message, sections }];
     });
+    // Startup receipts can precede Pi's initial declarations. Fold only that system
+    // prefix; moving later tool deltas into the head would invalidate signed history.
+    for (let index = 0; index < messages.length && messages[index].role === "system"; index += 1) {
+      const head = messages[index];
+      if (!head.toolsAdded?.length) continue;
+      if (index > 0) {
+        const prefix = getCurrentSystemMessage(messages.slice(0, index + 1));
+        messages.splice(0, index + 1, { ...head, ...prefix, timestamp: head.timestamp });
+        changed = true;
+      }
+      break;
+    }
     if (changed) return { messages };
   });
 }
