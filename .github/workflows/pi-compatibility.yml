@@ -14,12 +14,16 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The fitchmultz/.github commit that added ponytail to fleet.json; v1.0.0 predates it.
-  PI_AUTOMATION_REF: 529e16e073564bbde894ef756e1d75b302ed9834
+  PI_AUTOMATION_REF: 9b08d65d70a01c74c4e01477ccf9473e86be33ee # main
 
 jobs:
-  compatibility:
-    name: compatibility / compatibility
+  hosts:
+    uses: fitchmultz/.github/.github/workflows/resolve-hosts.yml@9b08d65d70a01c74c4e01477ccf9473e86be33ee # main
+    with:
+      automation-ref: 9b08d65d70a01c74c4e01477ccf9473e86be33ee # main
+
+  qualify:
+    needs: hosts
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -39,39 +43,80 @@ jobs:
           check-latest: true
           package-manager-cache: false
       - name: Use the reviewed npm version
-        run: npm install --global "$(node -p 'require("./automation/package.json").packageManager')"
-      - id: targets
         run: |
-          echo "official=$(node -p 'require("./extension/package.json").devDependencies["@earendil-works/pi-coding-agent"]')" >> "$GITHUB_OUTPUT"
-      - name: Qualify official Pi
+          PM="$(node -p 'require("./automation/package.json").packageManager')"
+          npm exec --yes --package="$PM" -- npm install --global "$PM"
+      - name: Select the declared official Pi release
+        id: declared
+        run: |
+          node <<'JS' >> "$GITHUB_OUTPUT"
+          const assert = require('node:assert/strict');
+          const version = require('./extension/package.json').devDependencies?.['@earendil-works/pi-coding-agent'];
+          assert.equal(typeof version, 'string', 'Declare an exact stable official Pi version');
+          assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+          assert.equal(version.trim(), version);
+          console.log(`version=${version}`);
+          JS
+      - name: Qualify declared official Pi
+        env:
+          OFFICIAL_VERSION: ${{ steps.declared.outputs.version }}
+          PI_COMPAT_LANE_LABEL: official-declared
         run: >
           node automation/scripts/qualify.mjs --repo ponytail
           --source "$GITHUB_WORKSPACE/extension"
-          --host official --target "${{ steps.targets.outputs.official }}"
-          --output "$RUNNER_TEMP/qualification-official"
+          --host official --target "$OFFICIAL_VERSION"
+          --output "$RUNNER_TEMP/qualification-official-declared"
+      - name: Qualify latest official Pi
+        env:
+          OFFICIAL_VERSION: ${{ needs.hosts.outputs.official-version }}
+          PI_COMPAT_LANE_LABEL: official-latest
+        run: >
+          node automation/scripts/qualify.mjs --repo ponytail
+          --source "$GITHUB_WORKSPACE/extension"
+          --host official --target "$OFFICIAL_VERSION"
+          --output "$RUNNER_TEMP/qualification-official-latest"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        id: fork
         with:
           repository: fitchmultz/pi
-          ref: main
+          ref: ${{ needs.hosts.outputs.fork-ref }}
           path: fork
           persist-credentials: false
       - name: Build the current fork package
         working-directory: fork
         env:
+          FORK_REF: ${{ needs.hosts.outputs.fork-ref }}
           PI_OFFLINE: '1'
           PI_TELEMETRY: '0'
         run: |
           npm ci --ignore-scripts
           npm run hydrate:model-data
           npm run build:offline
-          node ../automation/scripts/pack-fork.mjs . "$RUNNER_TEMP/fork-package" "${{ steps.fork.outputs.commit }}"
+          node ../automation/scripts/pack-fork.mjs . "$RUNNER_TEMP/fork-package" "$FORK_REF"
           git diff --exit-code
       - name: Qualify maintained fork
         env:
-          PI_COMPAT_FORK_REF: ${{ steps.fork.outputs.commit }}
+          PI_COMPAT_FORK_REF: ${{ needs.hosts.outputs.fork-ref }}
         run: >
           node automation/scripts/qualify.mjs --repo ponytail
           --source "$GITHUB_WORKSPACE/extension"
           --host fork --target "$RUNNER_TEMP/fork-package"
           --output "$RUNNER_TEMP/qualification-fork"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: qualification-ponytail
+          path: ${{ runner.temp }}/qualification-*
+          if-no-files-found: error
+          retention-days: 14
+
+  compatibility:
+    name: compatibility / compatibility
+    if: always()
+    needs: [hosts, qualify]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require host resolution and all qualifications
+        env:
+          HOSTS: ${{ needs.hosts.result }}
+          QUALIFY: ${{ needs.qualify.result }}
+        run: test "$HOSTS" = success && test "$QUALIFY" = success
