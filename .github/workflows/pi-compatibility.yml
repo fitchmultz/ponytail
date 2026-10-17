@@ -46,14 +46,35 @@ jobs:
         run: |
           PM="$(node -p 'require("./automation/package.json").packageManager')"
           npm exec --yes --package="$PM" -- npm install --global "$PM"
-      - name: Qualify official Pi
+      - name: Select the declared official Pi release
+        id: declared
+        run: |
+          node <<'JS' >> "$GITHUB_OUTPUT"
+          const assert = require('node:assert/strict');
+          const version = require('./extension/package.json').devDependencies?.['@earendil-works/pi-coding-agent'];
+          assert.equal(typeof version, 'string', 'Declare an exact stable official Pi version');
+          assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+          assert.equal(version.trim(), version);
+          console.log(`version=${version}`);
+          JS
+      - name: Qualify declared official Pi
         env:
-          OFFICIAL_VERSION: ${{ needs.hosts.outputs.official-version }}
+          OFFICIAL_VERSION: ${{ steps.declared.outputs.version }}
+          PI_COMPAT_LANE_LABEL: official-declared
         run: >
           node automation/scripts/qualify.mjs --repo ponytail
           --source "$GITHUB_WORKSPACE/extension"
           --host official --target "$OFFICIAL_VERSION"
-          --output "$RUNNER_TEMP/qualification-official"
+          --output "$RUNNER_TEMP/qualification-official-declared"
+      - name: Qualify latest official Pi
+        env:
+          OFFICIAL_VERSION: ${{ needs.hosts.outputs.official-version }}
+          PI_COMPAT_LANE_LABEL: official-latest
+        run: >
+          node automation/scripts/qualify.mjs --repo ponytail
+          --source "$GITHUB_WORKSPACE/extension"
+          --host official --target "$OFFICIAL_VERSION"
+          --output "$RUNNER_TEMP/qualification-official-latest"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: fitchmultz/pi
@@ -94,7 +115,7 @@ jobs:
     needs: [hosts, qualify]
     runs-on: ubuntu-latest
     steps:
-      - name: Require host resolution and both qualifications
+      - name: Require host resolution and all qualifications
         env:
           HOSTS: ${{ needs.hosts.result }}
           QUALIFY: ${{ needs.qualify.result }}
