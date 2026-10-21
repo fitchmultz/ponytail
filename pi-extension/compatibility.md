@@ -79,7 +79,10 @@ resource loader, session runtime, package filters, and deterministic faux
 provider. Codex prefix checks capture the real adapter's request payload and stop
 before networking. The Anthropic regression uses a real startup receipt before
 one native tool declaration, dynamic addition/redefinition/removal, mode and
-effort changes, and final SDK serialization into a mocked fetch. It checks fixed
+effort changes, and final SDK serialization into a local, credential-free mocked
+fetch. The capture decodes the wire `Content-Encoding` (plain JSON or gzip), so
+host-owned request compression does not masquerade as an SDK connection failure.
+It checks fixed
 initial declarations and prompt, positional tool changes, historical effort,
 opaque signed fixtures, and unchanged old semantic input (excluding only moving
 protocol cache markers and the upcoming assistant's effort). No test makes live

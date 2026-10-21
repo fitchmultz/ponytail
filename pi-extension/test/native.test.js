@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { after, test } from "node:test";
+import { gunzipSync } from "node:zlib";
 
 // Select an actual installed host; all session/loader/provider APIs below are public.
 const packageRoot = process.env.PI_PACKAGE_DIR || dirname(dirname(fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"))));
@@ -166,7 +167,12 @@ test("native startup receipts preserve Anthropic's serialized anchor through dyn
       async fetch(input, init) {
         const wire = new Request(input, init);
         assert.equal(new URL(wire.url).pathname, "/v1/messages");
-        payloads.push(await wire.json());
+        // The maintained host may gzip Anthropic requests before SDK fetch.
+        // Decode the wire encoding, not a pre-serialization onPayload substitute.
+        const encoding = wire.headers.get("content-encoding");
+        assert.ok(encoding === null || encoding === "gzip", `Unexpected request encoding: ${encoding}`);
+        const bytes = Buffer.from(await wire.arrayBuffer());
+        payloads.push(JSON.parse((encoding === "gzip" ? gunzipSync(bytes) : bytes).toString("utf8")));
         betas.push(wire.headers.get("anthropic-beta"));
         const events = [
           { type: "message_start", message: { id: "mock", type: "message", role: "assistant", model: model.id, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 } } },
