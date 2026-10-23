@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": { "test": "node --test ./test/*.test.js" },
   "dependencies": {
-    "@modelcontextprotocol/server": "2.1.0",
+    "@modelcontextprotocol/server": "2.3.0",
     "zod": "4.6.5"
   }
 }
