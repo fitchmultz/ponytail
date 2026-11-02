@@ -4,6 +4,7 @@
 
 ### Pi
 
+- Require Pi 1.5.0 or newer. Development qualification uses the exact official 1.5.0 cohort with host TypeBox 1.3.27.
 - Keep startup policy receipts from displacing Pi's native initial tool declaration. Later tools remain positional additions, redefinitions, and removals instead of rewriting the provider's initial tool list.
 
 ## 7.0.0

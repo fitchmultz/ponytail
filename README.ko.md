@@ -124,7 +124,7 @@ Copilot CLI는 플러그인 명령에 그 이름을 네임스페이스로 붙인
 
 ### Pi agent harness
 
-Pi 1.0.0 이상이 필요하다.
+Pi 1.5.0 이상이 필요하다.
 
 ```bash
 pi install git:github.com/fitchmultz/ponytail

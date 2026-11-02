@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { after, test } from "node:test";
 import { gunzipSync } from "node:zlib";
+import { Type } from "typebox";
 
 // Select an actual installed host; all session/loader/provider APIs below are public.
 const packageRoot = process.env.PI_PACKAGE_DIR || dirname(dirname(fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"))));
@@ -59,7 +60,7 @@ async function open(t, { extension = true, filtered = false, userSkill = false, 
           }
           if (forced) return { systemPrompt: `${event.systemPrompt}\nFULL TAKEOVER` };
         });
-        pi.registerTool({ name: "hold", label: "hold", description: "Test barrier", parameters: ai.Type.Object({ id: ai.Type.Number() }), async execute(_id, args) {
+        pi.registerTool({ name: "hold", label: "hold", description: "Test barrier", parameters: Type.Object({ id: Type.Number() }), async execute(_id, args) {
           const gate = gates[args.id];
           gate.entered.resolve(); await gate.release.promise;
           return { content: [{ type: "text", text: "released" }], details: {} };
@@ -129,7 +130,7 @@ test("native startup receipts preserve Anthropic's serialized anchor through dyn
   }), done()]);
   const running = h.session.prompt("DISCOVER THEN REDEFINE THEN REMOVE");
   const late = description => ({
-    name: "late", label: "late", description, parameters: ai.Type.Object({ value: ai.Type.String() }),
+    name: "late", label: "late", description, parameters: Type.Object({ value: Type.String() }),
     async execute() { return { content: [{ type: "text", text: "late result" }], details: {} }; },
   });
   await gates[0].entered.promise;
@@ -193,34 +194,20 @@ test("native startup receipts preserve Anthropic's serialized anchor through dyn
     ...message, content: content.map(({ cache_control, ...block }) => block),
   }));
   const additions = payloads.map(payload => blocks(payload).filter(block => block.type === "tool_addition"));
-  // Pi 1.0 references deferred schemas; 1.1+ defines them inline. Exercise the
-  // native dialect actually delivered, without a version-string or source probe.
-  const references = additions[1][0]?.tool.type === "tool_reference";
   for (const [index, payload] of payloads.entries()) {
-    if (!references) assert.deepEqual(payload.tools, payloads[0].tools, "Initial declarations must not change with late tools");
+    assert.deepEqual(payload.tools, payloads[0].tools, "Initial declarations must not change with late tools");
     assert.deepEqual(payload.system, payloads[0].system, "The leading prompt must remain stable");
-    if (index && (!references || index === 1)) {
+    if (index) {
       // The last effort is for the upcoming assistant; historical efforts are fixed.
       const previous = semanticMessages(payloads[index - 1]).slice(0, -1);
       assert.deepEqual(semanticMessages(payload).slice(0, previous.length), previous, "Old signed input must remain stable");
     }
   }
   assert.deepEqual(payloads[0].tools.map(tool => tool.name), ["hold", "__pi_deferred_placeholder__"]);
-  if (references) {
-    assert.deepEqual(payloads[1].tools.slice(0, payloads[0].tools.length), payloads[0].tools);
-    assert.equal(payloads[1].tools[2].name, "late");
-    assert.equal(payloads[1].tools[2].defer_loading, true);
-    assert.deepEqual(additions.map(list => list.map(block => block.tool.name)), [[], ["late"], [], []]);
-    assert.deepEqual(payloads.slice(2).map(payload => payload.tools.map(tool => tool.name)), [["hold", "late"], ["hold"]]);
-    assert.equal(payloads[2].tools[1].description, "Replacement definition");
-    assert.deepEqual(betas.map(beta => beta?.split(",").includes("mid-conversation-tool-changes-2026-07-01")), [true, true, false, false]);
-    t.diagnostic("Native reference-only transport: deferred append preserves initial declarations; redefinition uses host fallback");
-  } else {
-    assert.ok(betas.every(beta => beta?.split(",").includes("inline-tools-2026-09-15")));
-    assert.deepEqual(additions.map(list => list.map(block => block.tool.definition.description)),
-      [[], ["First definition"], ["First definition", "Replacement definition"], ["First definition", "Replacement definition"]]);
-    assert.deepEqual(payloads.map(payload => blocks(payload).filter(block => block.type === "tool_removal" && block.tool.name === "late").length), [0, 0, 0, 1]);
-  }
+  assert.ok(betas.every(beta => beta?.split(",").includes("inline-tools-2026-09-15")));
+  assert.deepEqual(additions.map(list => list.map(block => block.tool.definition.description)),
+    [[], ["First definition"], ["First definition", "Replacement definition"], ["First definition", "Replacement definition"]]);
+  assert.deepEqual(payloads.map(payload => blocks(payload).filter(block => block.type === "tool_removal" && block.tool.name === "late").length), [0, 0, 0, 1]);
   assert.deepEqual(blocks(payloads[3]).filter(block => block.type === "thinking").map(block => block.signature), ["opaque-fixture-0", "opaque-fixture-1", "opaque-fixture-2"]);
   assert.deepEqual(payloads[3].messages.filter(message => message.output_config).map(message => message.output_config.effort), ["max", "low", "medium", "max"]);
   assert.deepEqual(h.requests.map(section), [body("full"), body("full"), body("full"), undefined]);
