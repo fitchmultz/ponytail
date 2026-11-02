@@ -1,7 +1,7 @@
 # Pi runtime contract
 
-Ponytail uses the public APIs shared by official Pi 1.0.0 and the maintained 1.0
-fork. Pi 1.0.0 is the minimum; the exact eight-package 1.0.0 cohort and host
+Ponytail uses the public APIs shared by official Pi 1.5.0 and the maintained
+fork. Pi 1.5.0 is the minimum; the exact eight-package 1.5.0 cohort and host
 TypeBox 1.3.27 provide development qualification. It does not change model selection, reasoning effort, context size, tools,
 permissions, provider transport, or compaction policy.
 
@@ -87,10 +87,8 @@ initial declarations and prompt, positional tool changes, historical effort,
 opaque signed fixtures, and unchanged old semantic input (excluding only moving
 protocol cache markers and the upcoming assistant's effort). No test makes live
 model calls or claims provider cache billing or signature validation.
-Official Pi 1.0's older Anthropic transport instead appends deferred schemas and
-falls back to current tools for redefinitions; the regression checks that native
-behavior without claiming the stronger inline-definition guarantee of Pi 1.1
-and the current fork. Ponytail preserves the SDK's initial anchor on both.
+Both supported hosts send late tools, redefinitions, and removals as inline tool
+changes; Ponytail preserves the SDK's initial anchor on both.
 To exercise another installed host, such as the fork, with the same contract
 suite, point `PI_PACKAGE_DIR` at its installed package:
 

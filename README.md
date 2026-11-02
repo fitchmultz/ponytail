@@ -134,7 +134,7 @@ Copilot CLI namespaces plugin commands by plugin name. For example:
 
 ### Pi agent harness
 
-Requires Pi **1.0.0 or newer** on Node **24.15 or newer**. The development cohort is exact official **1.0.0** with host TypeBox **1.3.27**; both supported 1.0 targets use public APIs.
+Requires Pi **1.5.0 or newer** on Node **24.15 or newer**. The development cohort is exact official **1.5.0** with host TypeBox **1.3.27**; both supported targets use public APIs.
 
 ```bash
 pi install git:github.com/fitchmultz/ponytail
